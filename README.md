@@ -1,4 +1,4 @@
-DOMAIN ANALYZER
+# Domain Analyzer
 created 2022 by gaenssle
 written in Python 3.7
 
