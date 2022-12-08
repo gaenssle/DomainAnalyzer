@@ -70,7 +70,14 @@ def ExtractDetails(GeneTable, Header, Name, Offset, OutputFile, Ask=True):
 def CreateFasta(DetailsOnly, OutputFile, Ask=True):
 	Fasta = []
 	for Gene in DetailsOnly:
-		SubString = ">" + Gene[0] + " [" + Gene[-3] + "]\n" + Gene[-1] + "\n"
+		# Option A: "> kEGG-ID [Phylum-Genus]"
+		# SubString = ">" + Gene[0] + " [" + Gene[-3] + "]\n" + Gene[-1] + "\n"
+		# Option B: "> short-KEGG-ID [Species]"
+		if "_" in Gene[0]:
+			IDshort = Gene[0].split(":",1)[0] + ":" + Gene[0].split("_",1)[1]
+		else:
+			IDshort = Gene[0]
+		SubString = ">" + IDshort + " [" + Gene[-4] + "]\n" + Gene[-1] + "\n"
 		Fasta.append(SubString)
 	IE.ExportList(Fasta, OutputFile.rsplit(".", 1)[0] + ".fasta", Ask=Ask)
 
