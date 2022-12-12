@@ -165,10 +165,10 @@ def DownloadMotifKEGG(IDList, OutputFile, OutputFolder, OutputFragments, Multipr
 Input.PrintHeader()
 DirectoryName, ScriptName = os.path.split(os.path.abspath(__file__))
 os.chdir(DirectoryName)
-Folder = Input.GetFolder(DirectoryName)
+Folder, Ask = Input.GetFolder(DirectoryName)
 Name = Input.GetName(Folder)
 DBList, Action = Input.GetAction()
-SpeedUp = Input.UseMultiprocess()
+SpeedUp = Input.UseMultiprocess(Action)
 
 # Download Sequence IDs from UniProt, KEGG and/or PDB
 if "i" in Action:
@@ -210,17 +210,17 @@ if "e" in Action:
 		OutputFile = Folder + "/Output/" + Name + "_" + DB + "_Domains.txt"
 		if DB == "UniProt":
 			GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
-			Motifs = Extract.ExtractMotifs(GeneTable, Header, Name, OffsetUniProt, OutputFile)
-			DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile)
-			Extract.CreateFasta(DetailsOnly, OutputFile)
+			Motifs = Extract.ExtractMotifs(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
+			DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
+			Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
 		elif DB == "KEGG":
 			MotifFile = Folder + "/Output/" + Name + "_" + DB + "_Motif_all.txt"
 			GeneTable, Header = IE.ImportNestedDictionary(InputFile, getHeader=True)
 			MotifTable = IE.ImportNestedList(MotifFile)
-			GoodDomains, Header = Extract.AddMotifKEGG(GeneTable, MotifTable, Header, Name, Cutoff, OutputFile)
-			Motifs = Extract.ExtractMotifs(GoodDomains, Header, Name, OffsetKEGG, OutputFile)
-			DetailsOnly = Extract.ExtractDetails(GoodDomains, Header, Name, OffsetKEGG, OutputFile)
-			Extract.CreateFasta(DetailsOnly, OutputFile)
+			GoodDomains, Header = Extract.AddMotifKEGG(GeneTable, MotifTable, Header, Name, Cutoff, OutputFile, Ask=Ask)
+			Motifs = Extract.ExtractMotifs(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
+			DetailsOnly = Extract.ExtractDetails(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
+			Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
 
 # Count occurence of same taxonomy and domain motifs
 if "c" in Action:
@@ -228,8 +228,8 @@ if "c" in Action:
 		try:
 			InputFile = Folder + "/Output/" + Name + "_" + DB + "_Domains_Motifs.txt"
 			GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
-			Count.CountMotif(GeneTable, Folder, Name, DB)
-			Count.CountTaxonomy(GeneTable, Header, Folder, Name, DB)
+			Count.CountMotif(GeneTable, Folder, Name, DB, Ask=Ask)
+			Count.CountTaxonomy(GeneTable, Header, Folder, Name, DB, Ask=Ask)
 		except FileNotFoundError:
 			pass
 

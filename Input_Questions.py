@@ -46,13 +46,16 @@ def GetFolder(DirectoryName):
 	while Confirmation == False:
 		if os.path.exists(Folder):
 			Process = input("\nThis folder already exists"
-				"\nDo you want to:\n- a\tappend/replace data to this folder\n- n\tenter new folder name\n")
-			while Process not in ("a", "n"):
-				Process = input("\nPlease enter 'a' (append) or 'n' (new)\n")
-			if Process == "a":
-				break
-			else:
+				"\nDo you want to:\n- a\tappend data to this folder (manual replace)\n- r\treplace data to this folder (automatic replace)\n- n\tenter new folder name\n")
+			while Process not in ("a","r", "n"):
+				Process = input("\nPlease enter 'a' (append), 'r' (replace) or 'n' (new)\n")
+			Ask = True	# Ask if files with identical names should be replaced
+			if Process == "n":
 				Folder = input("\nEnter your folder (project) name:\n")
+			else:
+				if Process == "r":
+					Ask = False
+				break
 		else:
 			Process = input("\nThis folder does not exist yet"
 					"\nDo you want to:\n- c\tcreate a new project\n- n\tenter new folder name\n")
@@ -65,7 +68,7 @@ def GetFolder(DirectoryName):
 	IE.CreateFolder(Folder + "/Input")
 	IE.CreateFolder(Folder + "/Output")
 	# print("Created folder:", Folder, "with the Subfolders Input and Output")
-	return(Folder)
+	return(Folder, Ask)
 
 # Ask from which databases should be search (options: UniProt, KEGG and PDB)
 def GetDB():
@@ -109,11 +112,14 @@ def GetName(Folder):
 	return(Name)
 
 # Ask if multiprocessing should be used
-def UseMultiprocess():
-	Confirmation = input("\nUse multiprocess? -> Speeds up process 8x but can crash"
-		"\n-> also needs to be installed first (module: multiprocessing)\n(y=yes, n=no)\n")
-	while Confirmation not in ("y", "n"):
-		Confirmation = input("\nPlease enter 'y' or 'n'!\n")
+def UseMultiprocess(Action):
+	if "d" in Action or "m" in Action:
+		Confirmation = input("\nUse multiprocess? -> Speeds up process 8x but can crash"
+			"\n-> also needs to be installed first (module: multiprocessing)\n(y=yes, n=no)\n")
+		while Confirmation not in ("y", "n"):
+			Confirmation = input("\nPlease enter 'y' or 'n'!\n")
+	else:
+		Confirmation = "n"
 	return(Confirmation)
 
 def PrintFooter():

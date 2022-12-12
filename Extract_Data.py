@@ -57,11 +57,13 @@ def ExtractDetails(GeneTable, Header, Name, Offset, OutputFile, Ask=True):
 					print("Data for ID", ID, "could not read be in correctly and will be skipped")
 					Fragment = "XX"
 				SubList = [ID, Gene[1], Gene[Indices[1]+Shift]] + Gene[2:4] + [len(Fragment), Fragment]
+				# SubList = [ID, Gene[1], Gene[Indices[1]+Shift]] + Gene[2:4] + [Gene[Indices[2]+Shift], len(Fragment), Fragment]
 				if Gene[Indices[1]+Shift] == Name:
 					DetailsOnly.append(SubList)
 				Details.append(SubList)
 	HeaderPart = Header.split("\t",4)[0:4]
 	HeaderDetails = HeaderPart[0:2] + ["Domains"] + HeaderPart[2:4] + ["AA", "Sequence"]
+	# HeaderDetails = HeaderPart[0:2] + ["Domains"] + HeaderPart[2:4] + ["Start","AA", "Sequence"]
 	IE.ExportNestedList(Details, OutputFile, "\t".join(HeaderDetails) + "\n", Add="_Details", Ask=Ask)
 	IE.ExportNestedList(DetailsOnly, OutputFile, "\t".join(HeaderDetails) + "\n", Add="_only" + Name, Ask=Ask)
 	return(DetailsOnly)
@@ -82,7 +84,7 @@ def CreateFasta(DetailsOnly, OutputFile, Ask=True):
 	IE.ExportList(Fasta, OutputFile.rsplit(".", 1)[0] + ".fasta", Ask=Ask)
 
 # Add domain motifs to gene details from KEGG
-def AddMotifKEGG(Genes, Motifs, Header, Name, Cutoff, OutputFile):
+def AddMotifKEGG(Genes, Motifs, Header, Name, Cutoff, OutputFile, Ask=True):
 	Header = Header.rstrip() + "\tDomain\tStart\tEnd\tE-Value\n"
 	Abbreviations = {}
 	AllDomains = copy.deepcopy(Genes)
@@ -103,7 +105,7 @@ def AddMotifKEGG(Genes, Motifs, Header, Name, Cutoff, OutputFile):
 			GoodDomainList.append([Gene] + GoodDomains[Gene])
 	sortedList_Abbr = sorted(Abbreviations.items(), key=lambda x:x[0])
 	sortedDict_Abbr = dict(sortedList_Abbr)
-	IE.ExportNestedList(GoodDomainList, OutputFile, Header, Add="_Cutoff-" + str(Cutoff), Ask=False)
-	IE.ExportNestedDictionary(AllDomains, OutputFile, Header, Add="_all", Ask=False)
-	IE.ExportDictionary(sortedDict_Abbr, OutputFile, Header="Abbr.\tName\n", Add="_Abbreviations", Ask=False)
+	IE.ExportNestedList(GoodDomainList, OutputFile, Header, Add="_Cutoff-" + str(Cutoff), Ask=Ask)
+	IE.ExportNestedDictionary(AllDomains, OutputFile, Header, Add="_all", Ask=Ask)
+	IE.ExportDictionary(sortedDict_Abbr, OutputFile, Header="Abbr.\tName\n", Add="_Abbreviations", Ask=Ask)
 	return(GoodDomainList, Header)

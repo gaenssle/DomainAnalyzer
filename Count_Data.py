@@ -6,7 +6,7 @@
 import Import_Export as IE
 
 # Count the occurence of the same taxonomy in the file
-def CountTaxonomy(Table, Header, Folder, Name, DB):
+def CountTaxonomy(Table, Header, Folder, Name, DB, Ask=True):
 	Header = Header.strip().split("\t")
 	Index = Header.index("Taxonomy")
 	Count = {}
@@ -18,10 +18,10 @@ def CountTaxonomy(Table, Header, Folder, Name, DB):
 	sortedList_Count = sorted(Count.items(), key=lambda x:x[1], reverse=True)
 	sortedDict_Count = dict(sortedList_Count)
 	OutputFile = Folder + "/Output/" + Name + "_" + DB + "_CountTaxonomy.txt"
-	IE.ExportDictionary(sortedDict_Count, OutputFile, Header="Taxonomy\tCount\n")
+	IE.ExportDictionary(sortedDict_Count, OutputFile, Header="Taxonomy\tCount\n", Ask=Ask)
 
 # Count the occurence of the same domain motif (architecture) in the file
-def CountMotif(Table, Folder, Name, DB):
+def CountMotif(Table, Folder, Name, DB, Ask=True):
 	Count = {}
 	for Gene in Table:
 		if Gene[-1] in Count:
@@ -31,4 +31,4 @@ def CountMotif(Table, Folder, Name, DB):
 	sortedList_Count = sorted(Count.items(), key=lambda x:x[1], reverse=True)
 	sortedDict_Count = dict(sortedList_Count)
 	OutputFile = Folder + "/Output/" + Name + "_" + DB + "_CountMotif.txt"
-	IE.ExportDictionary(sortedDict_Count, OutputFile, Header="Motif\tCount\n")
+	IE.ExportDictionary(sortedDict_Count, OutputFile, Header="Motif\tCount\n", Ask=Ask)
