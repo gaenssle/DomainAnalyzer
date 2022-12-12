@@ -75,7 +75,7 @@ def GetDB():
 	DBList = input("\nWhich databases do you want to download from?"
 		"\n- a\tall (KEGG, UniProt, PDB)\n- k\tKEGG\n- u\tUniProt\n- p\tPDB (only for sequence IDs)"
 		"\n-> enter e.g 'a', 'k' or 'ku'\n")
-	while all(ch in "akup" for ch in DBList) == False:
+	while DBList == "" or all(ch in "akup" for ch in DBList) == False:
 		DBList = input("\nPlease enter 'a', 'k', 'u' or 'p' (alone or combined)\n")
 	if "a" in DBList:
 		DBList = "kup"
@@ -90,7 +90,7 @@ def GetAction():
 		"\n- a\tconduct all actions\n- i\tdownload sequence IDs\n- d\tdownload data"
 		"\n- m\tdownload motif (for KEGG)\n- e\textract data\n- c\tcount data"
 		"\n-> enter e.g 'a', 'e', or 'dme'\n")
-	while all(ch in "aidmec" for ch in Action) == False:
+	while Action == "" or all(ch in "aidmec" for ch in Action) == False:
 		Action = input("\nPlease enter any or multiple of the following: a, i, d, m, e, c\n")
 	if "a" in Action:
 		Action = "idmec"

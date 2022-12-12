@@ -2,6 +2,8 @@
 # Written in Python 3.7 in 2022 by A.L.O. Gaenssle
 # Counts phylum and gene names
 
+import math
+
 # Own modules
 import Import_Export as IE
 
@@ -32,3 +34,22 @@ def CountMotif(Table, Folder, Name, DB, Ask=True):
 	sortedDict_Count = dict(sortedList_Count)
 	OutputFile = Folder + "/Output/" + Name + "_" + DB + "_CountMotif.txt"
 	IE.ExportDictionary(sortedDict_Count, OutputFile, Header="Motif\tCount\n", Ask=Ask)
+
+# Group the numbers and count their occurence (for Start position and sequnce length)
+def CountNumber(Table, Header, Folder, Name, DB, Type, Ask=True, Interval=10):
+	Index = Header.split("\t").index(Type)
+	Count = {}
+	for Line in Table:
+	    Start = Line[Index]
+	    Floor = math.floor(int(Start)/Interval)*Interval
+	    Group = str("{:03d}".format(Floor)) + "-" + str("{:03d}".format(Floor+Interval-1))
+	    if Group in Count:
+	        Count[Group] += 1
+	    else:
+	        Count[Group] = 1
+	sortedList_Count = sorted(Count.items(), key=lambda x:x[0])
+	sortedDict_Count = dict(sortedList_Count)
+	if Type == "AA":
+		Type = "Length"
+	OutputFile = Folder + "/Output/" + Name + "_" + DB + "_Count" + Type + ".txt"
+	IE.ExportDictionary(sortedDict_Count, OutputFile, Header=Type+"\tCount\n", Ask=Ask)

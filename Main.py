@@ -230,6 +230,10 @@ if "c" in Action:
 			GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
 			Count.CountMotif(GeneTable, Folder, Name, DB, Ask=Ask)
 			Count.CountTaxonomy(GeneTable, Header, Folder, Name, DB, Ask=Ask)
+			InputFile = Folder + "/Output/" + Name + "_" + DB + "_Domains_only" + Name + ".txt"
+			GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
+			Count.CountNumber(GeneTable, Header, Folder, Name, DB, "AA", Ask=Ask)
+			Count.CountNumber(GeneTable, Header, Folder, Name, DB, "Start", Ask=Ask)
 		except FileNotFoundError:
 			pass
 
