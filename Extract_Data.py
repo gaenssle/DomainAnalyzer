@@ -56,14 +56,12 @@ def ExtractDetails(GeneTable, Header, Name, Offset, OutputFile, Ask=True):
 				except ValueError:
 					print("Data for ID", ID, "could not read be in correctly and will be skipped")
 					Fragment = "XX"
-				SubList = [ID, Gene[1], Gene[Indices[1]+Shift]] + Gene[2:4] + [len(Fragment), Fragment]
-				# SubList = [ID, Gene[1], Gene[Indices[1]+Shift]] + Gene[2:4] + [Gene[Indices[2]+Shift], len(Fragment), Fragment]
+				SubList = [ID, Gene[1], Gene[Indices[1]+Shift]] + Gene[2:4] + [Gene[Indices[2]+Shift], len(Fragment), Fragment]
 				if Gene[Indices[1]+Shift] == Name:
 					DetailsOnly.append(SubList)
 				Details.append(SubList)
 	HeaderPart = Header.split("\t",4)[0:4]
-	HeaderDetails = HeaderPart[0:2] + ["Domains"] + HeaderPart[2:4] + ["AA", "Sequence"]
-	# HeaderDetails = HeaderPart[0:2] + ["Domains"] + HeaderPart[2:4] + ["Start","AA", "Sequence"]
+	HeaderDetails = HeaderPart[0:2] + ["Domains"] + HeaderPart[2:4] + ["Start","AA", "Sequence"]
 	IE.ExportNestedList(Details, OutputFile, "\t".join(HeaderDetails) + "\n", Add="_Details", Ask=Ask)
 	IE.ExportNestedList(DetailsOnly, OutputFile, "\t".join(HeaderDetails) + "\n", Add="_only" + Name, Ask=Ask)
 	return(DetailsOnly)
@@ -79,7 +77,7 @@ def CreateFasta(DetailsOnly, OutputFile, Ask=True):
 			IDshort = Gene[0].split(":",1)[0] + ":" + Gene[0].split("_",1)[1]
 		else:
 			IDshort = Gene[0]
-		SubString = ">" + IDshort + " [" + Gene[-4] + "]\n" + Gene[-1] + "\n"
+		SubString = ">" + IDshort + " [" + Gene[-5] + "]\n" + Gene[-1] + "\n"
 		Fasta.append(SubString)
 	IE.ExportList(Fasta, OutputFile.rsplit(".", 1)[0] + ".fasta", Ask=Ask)
 
