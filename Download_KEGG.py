@@ -103,7 +103,9 @@ def DownloadMotif(ID):
 					SubList = [ID, Organism] + Line
 				else:
 					SubList = [ID, Organism] + Line + Data[Index+1]
+				SubList[3] = "{:03d}".format(int(SubList[3]))
 				if SubList not in NewDomains:
 					NewDomains.append(SubList)
+	NewDomains.sort(key = lambda x: x[3])
 	print(ID, "downloaded")
 	return(NewDomains)

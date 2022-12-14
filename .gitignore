@@ -3,5 +3,4 @@ test
 *.ods
 *.txt
 DUF*
-Test.py
 __pycache__
