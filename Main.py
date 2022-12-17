@@ -170,6 +170,13 @@ Name = Input.GetName(Folder)
 DBList, Action = Input.GetAction()
 SpeedUp = Input.UseMultiprocess(Action)
 
+# Skip manual imput section
+# Folder = "DUF1735"
+# Ask = False
+# Name = "DUF1735"
+# DBList = ["KEGG", "UniProt"]
+# Action = "c"
+
 # Download Sequence IDs from UniProt, KEGG and/or PDB
 if "i" in Action:
 	DownloadList(Name, Folder + "/Input/" + Name + ".txt", DBList)
@@ -226,14 +233,16 @@ if "e" in Action:
 if "c" in Action:
 	for DB in DBList:
 		try:
-			InputFile = Folder + "/Output/" + Name + "_" + DB + "_Domains_Motifs.txt"
-			GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
-			Count.CountMotif(GeneTable, Folder, Name, DB, Ask=Ask)
-			Count.CountTaxonomy(GeneTable, Header, Folder, Name, DB, Ask=Ask)
-			InputFile = Folder + "/Output/" + Name + "_" + DB + "_Domains_only" + Name + ".txt"
-			GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
-			Count.CountNumber(GeneTable, Header, Folder, Name, DB, "AA", Ask=Ask)
-			Count.CountNumber(GeneTable, Header, Folder, Name, DB, "Start", Ask=Ask)
+			MotifFile = Folder + "/Output/" + Name + "_" + DB + "_Domains_Motifs.txt"
+			DomainFile = Folder + "/Output/" + Name + "_" + DB + "_Domains_only" + Name + ".txt"
+			Motifs, MotifHeader = IE.ImportNestedDictionary(MotifFile, getHeader=True)
+			Domains, Header = IE.ImportNestedList(DomainFile, getHeader=True)
+			Count.CountMotif(Motifs, Folder, Name, DB, Ask=Ask)
+			Count.CountTaxonomy(Motifs, MotifHeader, Folder, Name, DB, Ask=Ask)
+			GroupedDomains = Count.GroupDomains(Domains, Motifs, Header, Folder, Name, DB, Ask=Ask)
+			for Type in ["Start", "AA"]:
+				Count.CountNumber(Domains, Header, Folder, Name, DB, Type, Ask=Ask)
+				Count.DomainStatistics(GroupedDomains, Folder, Name, DB, Type, Ask=Ask)
 		except FileNotFoundError:
 			pass
 
