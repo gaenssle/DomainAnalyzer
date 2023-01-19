@@ -81,6 +81,14 @@ def CreateFasta(DetailsOnly, OutputFile, Ask=True):
 		Fasta.append(SubString)
 	IE.ExportList(Fasta, OutputFile.rsplit(".", 1)[0] + ".fasta", Ask=Ask)
 
+# Create a fasta file of all sequences (>ID [Species]\nSequence)
+def CreateFasta_wholeSequence(ProteinList, OutputFile, Ask=True):
+	Fasta = []
+	for Protein in ProteinList:
+		SubString = ">" + Protein[0] + " [" + Protein[2] + "]\n" + Protein[5] + "\n"
+		Fasta.append(SubString)
+	IE.ExportList(Fasta, File.rsplit(".", 1)[0] + "_wholeSequence.fasta", Ask=Ask)
+
 # Add domain motifs to gene details from KEGG
 def AddMotifKEGG(Genes, Motifs, Header, Name, Cutoff, OutputFile, Ask=True):
 	Header = Header.rstrip() + "\tDomain\tStart\tEnd\tE-Value\n"
