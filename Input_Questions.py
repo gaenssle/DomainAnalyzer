@@ -37,6 +37,7 @@ def PrintHeader():
 # Get name of the folder the data should be saved in
 def GetFolder(DirectoryName):
 	Confirmation = False
+	Ask = True
 	Folder = input("\nEnter your folder (project) name:"
 		"\n- If folder is a subfolder new to the python script: e.g. Test"
 		"\n- Otherwise enter full path: e.g. "

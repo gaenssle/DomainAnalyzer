@@ -76,6 +76,9 @@ def GroupDomains(Domains, Motifs, Header, Folder, Name, DB, Ask=True):
 					Position["Outlier"].append([Line[0], Start, Line[IndexLength], Motifs[Line[0]][-1]])
 			except ValueError:
 				Position["Outlier"].append([Line[0], Start, Line[IndexLength], Motifs[Line[0]][-1]])
+			except KeyError:
+				Position["Outlier"].append([Line[0], Start, Line[IndexLength], Motifs[ID][-1]])
+				# print(Motifs[Line])
 		else:
 			try:
 				ID, Suffix = Line[0].rsplit("_",1)
@@ -107,13 +110,16 @@ def DomainStatistics(Position, Folder, Name, DB, Type, Ask=True):
 	print(SumHeader.replace("\n", ""))
 	AllCount = sum(len(x) for x in Statistics.values())
 	for Group in Statistics:
-		Count = len(Statistics[Group])
-		Percent = round(Count/AllCount*100,2)
-		Mean = round(statistics.mean(Statistics[Group]))
-		Stdev = round(statistics.stdev(Statistics[Group]))
-		Min = min(Statistics[Group])
-		Max = max(Statistics[Group])
-		Summary[Group] = [Count, Percent, Mean, Stdev, Min, Max]
-		print(*Summary[Group], sep="\t")
+		try:
+			Count = len(Statistics[Group])
+			Percent = round(Count/AllCount*100,2)
+			Mean = round(statistics.mean(Statistics[Group]))
+			Stdev = round(statistics.stdev(Statistics[Group]))
+			Min = min(Statistics[Group])
+			Max = max(Statistics[Group])
+			Summary[Group] = [Count, Percent, Mean, Stdev, Min, Max]
+			print(*Summary[Group], sep="\t")
+		except ZeroDivisionError:
+			pass
 	OutputFile = Folder + "/Output/" + Name + "_" + DB + "_" + Type + ".txt"
 	IE.ExportNestedDictionary(Summary, OutputFile, Header="Position\t" + SumHeader, Add= "_Statistics", Ask=Ask)
