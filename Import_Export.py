@@ -70,6 +70,17 @@ def CheckFileExists(FileName, Ask):
 ## IMPORT FILE FUNCTION
 ##------------------------------------------------------
 
+# Import pandas dataframe
+def ImportDataFrame(FileName, UseCols=[], Sep="\t", Stamp=False):
+	if Stamp == True:
+		print("Import File:", FileName)
+	if UseCols == []:
+		DataFrame = pd.read_csv(FileName, sep=Sep)
+	else:
+		DataFrame = pd.read_csv(FileName, sep=Sep, usecols=UseCols)
+	return(DataFrame)
+
+
 # # Import files as list (1D) [Line1, Line2, Line3]
 # def ImportList(FileName, Stamp=False):
 # 	with open(FileName, 'r') as InputFile:
@@ -86,7 +97,7 @@ def CheckFileExists(FileName, Ask):
 ## EXPORT FILE FUNCTION
 ##------------------------------------------------------
 
-# Export DataFrame
+# Export pandas dataframe
 def ExportDataFrame(DataFrame, FileName, Add="", Columns="", Ask=True, Header=True):
 	if Add != "":
 		Name, FileType = FileName.rsplit(".", 1)

@@ -44,55 +44,55 @@ def DownloadGeneList(url, getAmount=False):
 
 # Download UniProt protein entry
 def DownloadEntryUniProt(ID):
-	url = "https://www.genome.jp/entry/up:" + ID
-	with urllib.request.urlopen(url) as File:
+	url = "https://www.genome.jp/entry/up:" + str(ID)
+	with urllib.request.urlopen(url) as Input:
+		Dict = {"Protein ID": ID}
+		Dict["Sequence"] = ""
+		TaxString = ""
 		InSequence = False
 		InDomain = False
-		KEGG = ""
-		Organism = ""
-		TaxString = ""
-		Taxonomy = ""
-		Length = ""
+		DomainID = 0
 		Domains = []
-		Sequence = ""
-		for Line in File:
+		for Line in Input:
 			Line = Line.decode("utf-8").strip()
 			Line = re.sub('<[^>]*>', '', Line)
 			if Line != "":
 				try:
 					if Line.startswith("ID"):
-						Length = Line.rsplit(";",1)[1].rsplit(" ",1)[0].strip()
+						Dict["Length"] = Line.rsplit(";",1)[1].rsplit(" ",1)[0].strip()
 					elif Line.startswith("OS"):
-						Organism = Line.split(" ",1)[1].replace(".", "").strip()
+						Dict["Organism"] = Line.split(" ",1)[1].replace(".", "").strip()
 					elif Line.startswith("OC"):
 						TaxString += Line.split(" ",1)[1].replace(".", "").strip()
 					elif Line.startswith("DR"):
 						if "KEGG" in Line:
-							KEGG = Line.split(";")[1].strip()
+							Dict["KEGG"] = Line.split(";")[1].strip()
 					elif Line.startswith("FT"):
 						if "DOMAIN" in Line:
 							InDomain = True
+							DomainID += 1
+							DID = "D" + str(DomainID) + "-"
 							String = Line.rsplit(" ",1)[1]
-							Domains.extend(String.split(".."))
-						elif InDomain and "/note=" in Line and (len(Domains)+1) % 3 == 0:
-							Domains.insert(-2, Line.split("\"")[1])
+							Dict[DID + "Start"], Dict[DID + "End"] = String.split("..",1)
+						elif InDomain and "/note=" in Line:
+							Dict[DID + "Name"] = Line.split("\"")[1]
+							inDomain = False
 					elif InSequence:
 						if Line.startswith("//"):
 							break
 						else:
-							Sequence += Line.replace(" ", "")
+							Dict["Sequence"] += Line.replace(" ", "")
 					elif Line.startswith("SQ"):
 						InSequence = True
 				except IndexError:
 					pass
 	try:
 		Kingdom, Phylum = TaxString.split("; ",3)[:2]
-		Taxonomy = Kingdom + "-" + Phylum
+		Dict["Taxonomy"] = Kingdom + "-" + Phylum
 	except ValueError:
-		Taxonomy = "-".join(TaxString.split("; ",))
+		Dict["Taxonomy"] = "-".join(TaxString.split("; ",))
 	print("ID", ID, "downloaded")
-	Details = [ID, KEGG, Organism, Taxonomy, Length, Sequence] + Domains
-	return(Details)
+	return(Dict)
 
 
 ##------------------------------------------------------
