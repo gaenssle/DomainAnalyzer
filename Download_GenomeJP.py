@@ -2,6 +2,7 @@
 # Written in Python 3.7 in 2022 by A.L.O. Gaenssle
 # Downloads gene IDs from Genome.jp
 
+import pandas as pd
 import re
 import math
 import urllib.request
@@ -98,74 +99,59 @@ def DownloadEntryUniProt(ID):
 ## CLEANUP DATA FUNCTIONS
 ##------------------------------------------------------
 
-# Convert downloaded UniProt text to table
-def CleanUniProt(Data):
-	GeneTable = []
-	GeneList = []
-	for Line in Data:
-		try:
-			GeneID, String = Line.split(" ",1)
-			String = String.strip().split("Full=",1)[1]
-			Name, IDString = String.split("{",1)
-			IDList = IDString.split("};",1)[0].split("|")
-			ECO = ""
-			Pfam = ""
-			EMBL = ""
-			for ID in IDList:
-				if len(ID) > 10:
-					if ID.startswith("ECO:"):
-						ECO = ID.split(":",1)[1]
-					elif ID.startswith("EMBL:"):
-						EMBL = ID.split(":",1)[1]
-					elif ID.startswith("Pfam:"):
-						Pfam = ID.split(":",1)[1]
-			GeneTable.append([GeneID, Pfam, ECO, EMBL, Name])
-			GeneList.append(GeneID)
-		except ValueError:
-			pass
-	return(GeneList, GeneTable)
-
 # Convert downloaded KEGG gene text to table
 def CleanKEGG(Data):
-	GeneTable = []
-	GeneList = []
+	ListOfDicts = []
 	for Line in Data:
+		Dict = {}
 		try:
-			GeneID, String = Line.split(" ",1)
-			String = String.strip()
+			Dict["Gene ID"], String = Line.strip().split(" ",1)
 			if "no KO assigned" in String:
-				if "Bank" in String:
-					Name = String.split("Bank) ")[1]
-				elif "RefSeq" in String:
-					Name = String.split("RefSeq)")[1]
-				else:
-					Name = String.split(")")[1]
-				KOID = ""
+				Dict["Name"] = String.split("|")[1].split(") ")[1]
 			else:
 				if "|" in String:
 					String = String.split("|")[0]
-					KOID, Name = String.split(" ", 1)
-			if "[EC" in Name:
-				Name, EC = Name.split(" [EC:")
-				EC = EC.replace("]", "")
-			else:
-				EC = ""
+				if "[EC" in String:
+					String, Dict["#EC"] = String.rsplit(" [EC:")
+					Dict["#EC"] = Dict["#EC"].replace("]", "").strip()
+				Dict["KO ID"], Dict["Name"] = String.strip().split(" ", 1)
 		except ValueError:
 			pass
-		GeneTable.append([GeneID, EC, KOID, Name])
-		GeneList.append(GeneID)
-	return(GeneList, GeneTable)
+		ListOfDicts.append(Dict)
+		DataFrame = pd.DataFrame(ListOfDicts)
+		DataFrame = DataFrame[["Gene ID", "KO ID", "#EC", "Name"]]
+	return(DataFrame)
+
+# Convert downloaded UniProt gene text to table
+def CleanUniProt(Data):
+	ListOfDicts = []
+	for Line in Data:
+		Dict = {}
+		try:
+			Dict["Gene ID"], String = Line.split(" ",1)
+			String = String.strip().split("Full=",1)[1]
+			Dict["Name"], IDString = String.split("{",1)
+			IDList = IDString.split(",",1)[0].split("}",1)[0].split("|")
+			for ID in IDList:
+				if len(ID) > 10:
+					Type, ID = ID.strip().split(":",1)
+					Dict[Type] = ID
+		except ValueError:
+			pass
+		ListOfDicts.append(Dict)
+		DataFrame = pd.DataFrame(ListOfDicts)
+	return(DataFrame)
 
 # Convert downloaded PDB gene text to table
 def CleanPDB(Data):
-	GeneTable = []
-	GeneList = []
+	ListOfDicts = []
 	for Line in Data:
+		Dict = {}
 		try:
-			GeneID, Name = Line.split(" ",1)
-			Name = Name.strip()
+			Dict["Gene ID"], Dict["Name"] = Line.split(" ",1)
+			Dict["Name"] = Dict["Name"].strip()
 		except ValueError:
 			pass
-		GeneTable.append([GeneID, Name])
-		GeneList.append(GeneID)
-	return(GeneList, GeneTable)
+		ListOfDicts.append(Dict)
+		DataFrame = pd.DataFrame(ListOfDicts)
+	return(DataFrame)
