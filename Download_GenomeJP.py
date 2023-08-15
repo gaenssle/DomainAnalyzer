@@ -1,6 +1,10 @@
 #!/usr/bin/python
 # Written in Python 3.7 in 2022 by A.L.O. Gaenssle
-# Downloads gene IDs from Genome.jp
+
+# DOWNLOAD GENE/PROTEIN DATA from Genome.jp
+# -> downloads all IDs associated with the input (domain) id
+# -> exports the otained data into a table
+# -> download protein data from UniProt (e.g. organims, domains and sequence)
 
 import pandas as pd
 import re
@@ -46,7 +50,7 @@ def DownloadGeneList(url, getAmount=False):
 def DownloadEntryUniProt(ID):
 	url = "https://www.genome.jp/entry/up:" + str(ID)
 	with urllib.request.urlopen(url) as Input:
-		Dict = {"Protein ID": ID}
+		Dict = {"ID": ID}
 		Dict["Sequence"] = ""
 		TaxString = ""
 		InSequence = False
@@ -105,7 +109,7 @@ def CleanKEGG(Data):
 	for Line in Data:
 		Dict = {}
 		try:
-			Dict["Gene ID"], String = Line.strip().split(" ",1)
+			Dict["ID"], String = Line.strip().split(" ",1)
 			if "no KO assigned" in String:
 				Dict["Name"] = String.split("|")[1].split(") ")[1]
 			else:
@@ -119,7 +123,7 @@ def CleanKEGG(Data):
 			pass
 		ListOfDicts.append(Dict)
 		DataFrame = pd.DataFrame(ListOfDicts)
-		DataFrame = DataFrame[["Gene ID", "KO ID", "#EC", "Name"]]
+		DataFrame = DataFrame[["ID", "KO ID", "#EC", "Name"]]
 	return(DataFrame)
 
 # Convert downloaded UniProt gene text to table
@@ -128,18 +132,18 @@ def CleanUniProt(Data):
 	for Line in Data:
 		Dict = {}
 		try:
-			Dict["Gene ID"], String = Line.split(" ",1)
+			Dict["ID"], String = Line.split(" ",1)
 			String = String.strip().split("Full=",1)[1]
-			Dict["Name"], IDString = String.split("{",1)
+			Dict["Name"], IDString = String.split(" {",1)
 			IDList = IDString.split(",",1)[0].split("}",1)[0].split("|")
 			for ID in IDList:
 				if len(ID) > 10:
 					Type, ID = ID.strip().split(":",1)
 					Dict[Type] = ID
+			ListOfDicts.append(Dict)
 		except ValueError:
 			pass
-		ListOfDicts.append(Dict)
-		DataFrame = pd.DataFrame(ListOfDicts)
+	DataFrame = pd.DataFrame(ListOfDicts)
 	return(DataFrame)
 
 # Convert downloaded PDB gene text to table
@@ -148,7 +152,7 @@ def CleanPDB(Data):
 	for Line in Data:
 		Dict = {}
 		try:
-			Dict["Gene ID"], Dict["Name"] = Line.split(" ",1)
+			Dict["ID"], Dict["Name"] = Line.split(" ",1)
 			Dict["Name"] = Dict["Name"].strip()
 		except ValueError:
 			pass

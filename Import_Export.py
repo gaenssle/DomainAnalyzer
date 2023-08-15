@@ -20,24 +20,6 @@ def CreateFolder(NewPath):
 		print("Files will be added to:", NewPath)
 	return(NewPath)
 
-# # Check file type (Species names, Genome IDs or Table of both)
-# def CheckFileType(FileName):
-# 	with open(FileName, 'r') as InputFile:
-# 		Text = InputFile.readlines()
-# 		if "\t" in Text[0]:
-# 			Type = "both"
-# 			print(FileName, "contains Species names and Genome IDs")
-# 		elif re.match(r"T[0-9]{5}", Text[0]):
-# 			Type = "ID"
-# 			print(FileName, "contains Genome IDs")
-# 		elif len(Text[0]) < 6:
-# 			Type = "ID"
-# 			print(FileName, "contains Genome IDs")
-# 		else:
-# 			Type = "Name"
-# 			print(FileName, "contains Species names")
-# 	return(Type)
-
 # Check if the file already exists and if it should be replaced
 def CheckFileExists(FileName, Ask):
 	if Ask:
@@ -56,29 +38,33 @@ def CheckFileExists(FileName, Ask):
 			FileName = input("\nEnter a new filename\n")
 	return(FileName)
 
-# # Copy all data from Fragment files (250-500 genes/file) into one large file
-# def CombineFiles(OutputFragments, OutputFolder, OutputFile, Header):
-# 	Data = []
-# 	FragmentList = os.listdir(OutputFragments)
-# 	for Fragment in FragmentList:
-# 		print(Fragment)
-# 		Data.extend(ImportNestedList(OutputFragments + "/" + Fragment))
-# 	ExportNestedList(sorted(Data), OutputFolder + OutputFile, Header, Add="_all")
+# Copy all data from Fragment files (250-500 genes/file) into one large file
+def CombineFiles(Folder, Sep):
+	FileList = os.listdir(Folder)
+	DataList = []
+	for File in FileList:
+		FilePath = os.path.join(Folder, File)
+		DataFrame = pd.read_csv(FilePath, sep=Sep)
+		DataList.append(DataFrame)
+	DataFrame = pd.concat(DataList, axis=0, ignore_index=True)
+	DataFrame = DataFrame.sort_values(DataFrame.columns[0])
+	return(DataFrame)
 
 
 ##------------------------------------------------------
 ## IMPORT FILE FUNCTION
 ##------------------------------------------------------
 
-# Import pandas dataframe
-def ImportDataFrame(FileName, UseCols=[], Sep="\t", Stamp=False):
-	if Stamp == True:
-		print("Import File:", FileName)
-	if UseCols == []:
-		DataFrame = pd.read_csv(FileName, sep=Sep)
-	else:
-		DataFrame = pd.read_csv(FileName, sep=Sep, usecols=UseCols)
-	return(DataFrame)
+# # Import pandas dataframe
+# def ImportDataFrame(FileName, UseCols=[], FileType=".csv", Sep=";", Stamp=False):
+# 	FileName = FileName + FileType
+# 	if Stamp == True:
+# 		print("Import File:", FileName)
+# 	if UseCols == []:
+# 		DataFrame = pd.read_csv(FileName, sep=Sep)
+# 	else:
+# 		DataFrame = pd.read_csv(FileName, sep=Sep, usecols=UseCols)
+# 	return(DataFrame)
 
 
 # # Import files as list (1D) [Line1, Line2, Line3]
@@ -98,13 +84,10 @@ def ImportDataFrame(FileName, UseCols=[], Sep="\t", Stamp=False):
 ##------------------------------------------------------
 
 # Export pandas dataframe
-def ExportDataFrame(DataFrame, FileName, Add="", Columns="", Ask=True, Header=True):
-	if Add != "":
-		Name, FileType = FileName.rsplit(".", 1)
-		FileName = Name + Add + "." + FileType
+def ExportDataFrame(DataFrame, FileName, Add="", Columns="", FileType=".csv", Sep=";", Ask=True, Header=True):
+	FileName = FileName + Add + FileType
 	FileName = CheckFileExists(FileName, Ask)
 	if Columns == "":
 		Columns = list(DataFrame)
-	DataFrame.to_csv(FileName, sep="\t", columns = Columns, index=False, header=Header)
+	DataFrame.to_csv(FileName, sep=Sep, columns = Columns, index=False, header=Header)
 	print("File saved as:", FileName, "\n")
-

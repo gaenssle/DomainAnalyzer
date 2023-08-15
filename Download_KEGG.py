@@ -17,11 +17,8 @@ import Import_Export as IE
 ##------------------------------------------------------
 # Download Info for each protein from KEGG
 def GetDetailedData(Entry, ID):
-	Organism = ""
-	UniProt = ""
-	AALength = ""
+	Dict = {"ID": ID,"AASeq": ""}
 	inAASeq = False
-	AASeq = ""
 	for Line in Entry:
 		Line = re.sub("\s\s+" , " ", Line)
 		Line = Line.strip()
@@ -29,18 +26,18 @@ def GetDetailedData(Entry, ID):
 			if Line.startswith("NTSEQ"):
 				break
 			else:
-				AASeq += Line.strip()
+				Dict["AASeq"] += Line.strip()
 		if inAASeq == False:
 			if Line.startswith("ORGANISM") or Line.startswith("VIRUS"):
 				Line = Line.split(" ",1)[1].strip()
-				Label, Organism = Line.split(" ",1)
+				Dict["Organism"] = Line.split(" ",1)[1]
 			elif "UniProt" in Line:
-				UniProt = Line.split(" ",1)[1]
+				Dict["UniProt"] = Line.split(" ",1)[1]
 			elif Line.startswith("AASEQ"):
-				AALength = Line.split(" ",1)[1]
+				Dict["AALength"] = Line.split(" ",1)[1]
 				inAASeq = True
-	ProteinData = [ID, UniProt, Organism, AALength, AASeq]
-	return(ProteinData)
+	# ProteinData = [ID, UniProt, Organism, AALength, AASeq]
+	return(Dict)
 
 # Download protein entries from KEGG -> in chunks of 10 gene IDs --> KEGG-get
 def DownloadProteinEntries(Chunked_List):

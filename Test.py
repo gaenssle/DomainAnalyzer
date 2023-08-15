@@ -23,10 +23,13 @@ import Download_KEGG as KEGG
 ## DEFAULT VALUES
 ## ---------------------------------------------------------------------------------------------------
 
-OffsetUniProt = 3 # Offset between domain columns (Name, Start, End) for UniProt
-OffsetKEGG = 4 # Offset between domain columns (Name, Start, End) for KEGG
-Cutoff = 0.0001 # E-value cutoff for KEGG to get only probable domains
-
+# OffsetUniProt = 3 # Offset between domain columns (Name, Start, End) for UniProt
+# OffsetKEGG = 4 # Offset between domain columns (Name, Start, End) for KEGG
+Cutoff = 0.0001 # E-value cutoff for KEGG to get only probable domains (default=0.0001)
+FileType = ".csv" # File types of all exported files (default="csv")
+Sep = ";" # Separator between the columns (default=";")
+Ask = False # Ask if files should be replaced (default=True)
+ClusterSize = 20 # Define the number of entires in which the download is saved (default=250)
 
 ## ----------------------------------------------------------------------------------------------------
 ## HELPFER FUNCTIONS
@@ -36,20 +39,17 @@ Cutoff = 0.0001 # E-value cutoff for KEGG to get only probable domains
 def MultiProcessing(IDList, Function):
 	Import = []
 	print("Download data for", len(IDList), "Items. . .")
-	print("TEST TEST TEST TEST")
 	if __name__ == '__main__':
-		print("IF LOOOOOOOOOOOP")
 		with Pool(10) as pool:
-			print("POOOOOOOLLLLLLL")
 			Import = pool.map(Function, IDList)
 		pool.close()
 		pool.join()
 	return(Import)
 
-# Divide the list of Gene IDs into a nested list of clusters (for multiprcessing)
-def GetChunk(List, ClusterSize=250):
-	ClusteredList = [List[x:x+ClusterSize] for x in range(0, len(List), ClusterSize)]
-	return(ClusteredList)
+# # Divide the list of Gene IDs into a nested list of clusters (for multiprcessing)
+# def GetChunk(List, ClusterSize=250):
+# 	ClusteredList = [List[x:x+ClusterSize] for x in range(0, len(List), ClusterSize)]
+# 	return(ClusteredList)
 
 
 ## ----------------------------------------------------------------------------------------------------
@@ -57,20 +57,20 @@ def GetChunk(List, ClusterSize=250):
 ## ----------------------------------------------------------------------------------------------------
 
 # Download all gene IDs associated with the supplied domain name from KEGG, UniProt and PDB
-def DownloadList(Domain, OutputFile, DBList, Ask=True):
-	print("\nNow downloading gene IDs containing domain", Domain, ". . .\n(Speed depends on internet connection)\n")
+def DownloadList(Name, OutputFile, DBList, FileType, Sep, Ask):
+	print("\nNow downloading gene IDs containing domain", Name, ". . .\n(Speed depends on internet connection)\n")
 	urlGeneList = "https://www.genome.jp/dbget-bin/get_linkdb?-t+"
-	urlDomain = "+pf:"
+	urlName = "+pf:"
 	urlPage = "+-p+"
 	urlKEGG = "genes"
 	for DB in DBList:
 		AddToName = "_" + DB
 		DB = DB.replace("KEGG", urlKEGG)
-		List, Pages = Genome.DownloadGeneList(urlGeneList + DB.lower() + urlDomain + Domain, getAmount=True)
+		urlInitial = urlGeneList + DB.lower() + urlName + Name
+		List, Pages = Genome.DownloadGeneList(urlInitial, getAmount=True)
 		for Page in range(2, Pages+1):
-			urlNew = urlGeneList + DB.lower() + urlPage + str(Page) + urlDomain + Domain
+			urlNew = urlGeneList + DB.lower() + urlPage + str(Page) + urlName + Name
 			List.extend(Genome.DownloadGeneList(urlNew))
-		print("List contains", len(List), "items\n")
 		if List != []:
 			if DB == "UniProt":
 				GeneTable = Genome.CleanUniProt(List)
@@ -79,73 +79,62 @@ def DownloadList(Domain, OutputFile, DBList, Ask=True):
 			elif DB == "PDB":
 				GeneTable = Genome.CleanPDB(List)
 			if len(GeneTable.index) != 0:
-				IE.ExportDataFrame(GeneTable, OutputFile, Add=AddToName, Ask=Ask)
+				print("Data found for", len(GeneTable.index), "entries\n")
+				IE.ExportDataFrame(GeneTable, OutputFile, Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
 
-# Download details for all given IDs from UniProt, including taxonomy, sequence and domains
-def DownloadEntryUniProt(IDList, OutputFile, OutputFolder, OutputFragments, Multiprocess="y", ClusterSize=250, Ask=False):
-	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
+
+# Download details for all given IDs from UniProt, including taxonomy, sequence and Names
+def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
 	print("Download protein data for", len(IDList), ". . .")
+	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
 	for ClusterID in range(len(ClusteredList)):
 		print("Download cluster", ClusterID+1, "of", len(ClusteredList))
-		FragmentFile = OutputFragments + "/" + OutputFile
+		FragmentFile = FilePath + "_" + str(ClusterID+1)
 		print(FragmentFile)
-		if os.path.exists(FragmentFile):
+		if os.path.exists(FragmentFile + FileType):
 			print("File already exists, skip to next cluster\n")
 		else:
 			if Multiprocess == "y":
 				ListOfDicts = MultiProcessing(ClusteredList[ClusterID],  Genome.DownloadEntryUniProt)
-				# for Item in Import:
-				# 	Dict =  Genome.DownloadEntryUniProt(ID)
-				# 	ListOfDicts.append(Dict)
 			else:
 				ListOfDicts = []
 				for ID in ClusteredList[ClusterID]:
 					Dict =  Genome.DownloadEntryUniProt(ID)
 					ListOfDicts.append(Dict)
 			ProteinTable = pd.DataFrame(ListOfDicts)
-			# FirstColumns = ["Protein ID", "Organism", "Taxonomy"]
-			# ColumnOrder = FirstColumns + (ProteinTable.columns.drop(FirstColumns).tolist())
-			# ProteinTable = ProteinTable[ColumnOrder]
-
-
-					# Table[Item[0]] = Item[1:]
 			print("Done!\n->", len(ProteinTable), "of", len(ClusteredList[ClusterID]), "found")
-			IE.ExportDataFrame(ProteinTable, FragmentFile, Add="_" + str(ClusterID+1), Ask=Ask)
-			# IE.ExportNestedDictionary(Table, FragmentFile, Header)
-	# IE.CombineFiles(OutputFragments, OutputFolder, OutputFile, Header)
+			IE.ExportDataFrame(ProteinTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
+	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
+	return(DataFrame)
 
-# # Download details for all given IDs from KEGG, including taxonomy and sequence
-# def DownloadEntryKEGG(IDList, OutputFile, OutputFolder, OutputFragments, Multiprocess="y"):
-# 	Header = "KEGG\tUniProt\tOrganism\tTaxonomy\tAA\tSequence\n"
-# 	Organisms = KEGG.DownloadOrganismsTemp()
-# 	ClusteredList = GetChunk(IDList, ClusterSize=500)
-# 	print("Download motif for", len(IDList), ". . .")
-# 	for ClusterID in range(len(ClusteredList)):
-# 		print("Download cluster", ClusterID+1, "of", len(ClusteredList))
-# 		FragmentFile = OutputFragments + "/" + OutputFile.rsplit(".", 1)[0] + "_" + str(ClusterID+1) + ".txt"
-# 		ClusterChunk = GetChunk(ClusteredList[ClusterID], ClusterSize=10)
-# 		if os.path.exists(FragmentFile):
-# 			print("File already exists, skip to next cluster\n")
-# 		else:
-# 			Table = {}
-# 			if Multiprocess == "y":
-# 				Import = MultiProcessing(ClusterChunk, KEGG.DownloadProteinEntries)
-# 				for Set in Import:
-# 					for Item in Set:
-# 						Table[Item[0]] = Item[1:]
-# 			else:
-# 				for Chunk in ClusterChunk:
-# 					Set =  KEGG.DownloadProteinEntries(Chunk)
-# 					for Item in Set:
-# 						Table[Item[0]] = Item[1:]
-# 			print("Table downloaded with", len(Table), "entries")
-# 			for Gene in Table:
-# 				try:
-# 					Table[Gene].insert(2, Organisms[Gene.split(":",1)[0]])
-# 				except KeyError:
-# 					Table[Gene].insert(2, "Virus or Unknown")
-# 			IE.ExportNestedDictionary(Table, FragmentFile, Header)
-# 	IE.CombineFiles(OutputFragments, OutputFolder, OutputFile, Header)
+# Download details for all given IDs from KEGG, including taxonomy and sequence
+def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
+	Organisms = KEGG.DownloadOrganismsTemp()
+	print("Download protein data for", len(IDList), ". . .")
+	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
+	for ClusterID in range(len(ClusteredList)):
+		print("Download cluster", ClusterID+1, "of", len(ClusteredList))
+		FragmentFile = FilePath + "_" + str(ClusterID+1)
+		print(FragmentFile)
+		ClusterChunk = [ClusteredList[ClusterID][x:x+10] for x in range(0, len(ClusteredList[ClusterID]), 10)]
+		if os.path.exists(FragmentFile + FileType):
+			print("File already exists, skip to next cluster\n")
+		else:
+			if Multiprocess == "y":
+				ListOfDicts = MultiProcessing(ClusterChunk, KEGG.DownloadProteinEntries)
+				# for Set in Import:
+				# 	for Item in Set:
+				# 		Table[Item[0]] = Item[1:]
+			else:
+				ListOfDicts = []
+				for Chunk in ClusterChunk:
+					Set =  KEGG.DownloadProteinEntries(Chunk)
+					ListOfDicts.extend(Set)
+			ProteinTable = pd.DataFrame(ListOfDicts)
+			print("Done!\n->", len(ProteinTable), "of", len(ClusteredList[ClusterID]), "found")
+			IE.ExportDataFrame(ProteinTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
+	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
+	return(DataFrame)
 
 
 ## ----------------------------------------------------------------------------------------------------
@@ -153,45 +142,47 @@ def DownloadEntryUniProt(IDList, OutputFile, OutputFolder, OutputFragments, Mult
 ## ----------------------------------------------------------------------------------------------------
 
 # Skip manual imput section
-SpeedUp = "n"
+# SpeedUp = "y"
+Multiprocess = "n"
 Folder = "DUF5727"
 # Folder = "DUF1735"
-Ask = False
 Name = "DUF5727"
 # Name = "DUF1735"
-# DBList = ["KEGG"]
-DBList = ["UniProt"]
+DBList = ["KEGG"]
+# DBList = ["UniProt"]
 # DBList = ["UniProt", "KEGG", "PDB"]
 # DBList = ["PDB"]
 Action = "d"
 
-Cycle = 0
-print("CYCLE NUMBER" ,Cycle)
-Cycle += 1
+
 IE.CreateFolder(Folder + "/Input")
 IE.CreateFolder(Folder + "/Output")
 
 # Download Sequence IDs from UniProt, KEGG and/or PDB
 if "i" in Action:
-	DownloadList(Name, Folder + "/Input/" + Name + ".txt", DBList, Ask=Ask)
+	OutputFile = os.path.join(Folder, "Input", Name)
+	DownloadList(Name, OutputFile, DBList, FileType, Sep, Ask)
 
 # download protein data from UniProt and/or KEGG
 if "d" in Action:
 	for DB in DBList:
-		# InputFile = Folder + "/Input/" + Name + "_" + DB + "_List.txt"
-		InputFile = Folder + "/Input/" + Name + "_" + DB + ".txt"
+		InputFile = os.path.join(Folder, "Input", Name + "_" + DB + FileType)
 		if not os.path.exists(InputFile):
-			DownloadList(Name, Folder + "/Input/" + Name + ".txt", [DB])
+			OutputFile = os.path.join(Folder, "Input", Name)
+			DownloadList(Name, OutputFile, [DB], FileType, Sep, Ask)
 		try:
-			# FileName, Header=0, UseCols=[], Sep="\t", Stamp=False
-			DataFrame = IE.ImportDataFrame(InputFile, UseCols = ["Gene ID"])
-			IDList = DataFrame["Gene ID"][:50].tolist()
-			# print(IDList)
-			OutputFile = Name + "_" + DB + "_Protein.txt"
-			OutputFragments = IE.CreateFolder(Folder + "/Output/" + Name + "_" + DB + "_ProteinFragments")
+			DataFrame = pd.read_csv(InputFile, sep=Sep)
+			IDList = DataFrame["ID"][:50].tolist()
+			OutputPath = os.path.join(Folder, "Output", Name + "_" + DB + "_Protein")
+			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
+			FragmentFile = os.path.join(FragmentFolder, Name + "_" + DB + "_Protein")
 			if DB == "UniProt":
-				DownloadEntryUniProt(IDList, OutputFile, Folder + "/Output/", OutputFragments, Multiprocess=SpeedUp)
+				Detailed = DownloadEntryUniProt(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
 			elif DB == "KEGG":
-				DownloadEntryKEGG(IDList, OutputFile, Folder + "/Output/", OutputFragments, Multiprocess=SpeedUp)
+				Detailed = DownloadEntryKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
 		except FileNotFoundError:
 			print(DB, "does not contain any items for domain", Name)
+		# print(DataFrame.head())
+		# print(Detailed.head())
+		DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="outer")
+		IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
