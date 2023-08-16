@@ -1,17 +1,21 @@
 #!/usr/bin/python
-# Written in Python 3.7 in 2022 by A.L.O. Gaenssle
-# Module for importing and exporting text files
+# Written in Python 3.10 in 2023 by A.L.O. Gaenssle
+
+# MODULE: EXPORT DATA AND CHECK FILES
+# -> create new folder
+# -> check if files exists and give an option to rename the file
+# -> Combine files (sets of entries) into a large dataframe
+# -> export pandas dataframe to defined filetype with set separator (Main.py)
 
 import pandas as pd
 import os
 import re
 
-
-##------------------------------------------------------
-## HELPER FUNCTIONS
-##------------------------------------------------------
-
-# Create new Folder
+##-------------------------------------------------------------------------------------------------
+## HELPER FUNCTIONS -------------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------
+## ================================================================================================
+## Create new Folder
 def CreateFolder(NewPath):
 	if not os.path.exists(NewPath):
 		os.makedirs(NewPath)
@@ -20,7 +24,8 @@ def CreateFolder(NewPath):
 		print("Files will be added to:", NewPath)
 	return(NewPath)
 
-# Check if the file already exists and if it should be replaced
+## ================================================================================================
+## Check if the file already exists and if it should be replaced
 def CheckFileExists(FileName, Ask):
 	if Ask:
 		Replace = "n"
@@ -38,7 +43,8 @@ def CheckFileExists(FileName, Ask):
 			FileName = input("\nEnter a new filename\n")
 	return(FileName)
 
-# Copy all data from Fragment files (250-500 genes/file) into one large file
+## ================================================================================================
+## Copy all data from Fragment files (250-500 genes/file) into one large file
 def CombineFiles(Folder, Sep):
 	FileList = os.listdir(Folder)
 	DataList = []
@@ -51,39 +57,11 @@ def CombineFiles(Folder, Sep):
 	return(DataFrame)
 
 
-##------------------------------------------------------
-## IMPORT FILE FUNCTION
-##------------------------------------------------------
-
-# # Import pandas dataframe
-# def ImportDataFrame(FileName, UseCols=[], FileType=".csv", Sep=";", Stamp=False):
-# 	FileName = FileName + FileType
-# 	if Stamp == True:
-# 		print("Import File:", FileName)
-# 	if UseCols == []:
-# 		DataFrame = pd.read_csv(FileName, sep=Sep)
-# 	else:
-# 		DataFrame = pd.read_csv(FileName, sep=Sep, usecols=UseCols)
-# 	return(DataFrame)
-
-
-# # Import files as list (1D) [Line1, Line2, Line3]
-# def ImportList(FileName, Stamp=False):
-# 	with open(FileName, 'r') as InputFile:
-# 		if Stamp == True:
-# 			print("Import File:", FileName)
-# 		List = []
-# 		for Line in InputFile:
-# 			if Line != "":
-# 				List.append(Line.strip())
-# 		return(List)
-
-
-##------------------------------------------------------
-## EXPORT FILE FUNCTION
-##------------------------------------------------------
-
-# Export pandas dataframe
+##-------------------------------------------------------------------------------------------------
+## EXPORT FILE FUNCTION ---------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------
+## ================================================================================================
+## Export pandas dataframe
 def ExportDataFrame(DataFrame, FileName, Add="", Columns="", FileType=".csv", Sep=";", Ask=True, Header=True):
 	FileName = FileName + Add + FileType
 	FileName = CheckFileExists(FileName, Ask)

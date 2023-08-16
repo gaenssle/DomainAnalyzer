@@ -1,7 +1,7 @@
 #!/usr/bin/python
-# Written in Python 3.7 in 2022 by A.L.O. Gaenssle
+# Written in Python 3.10 in 2023 by A.L.O. Gaenssle
 
-# DOWNLOAD GENE/PROTEIN DATA from Genome.jp
+# MODULE: DOWNLOAD GENE/PROTEIN DATA from Genome.jp
 # -> downloads all IDs associated with the input (domain) id
 # -> exports the otained data into a table
 # -> download protein data from UniProt (e.g. organims, domains and sequence)
@@ -13,11 +13,11 @@ import urllib.request
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
-##------------------------------------------------------
-## DOWNLOAD FUNCTIONS
-##------------------------------------------------------
-
-# Download gene list from Genome.jp
+##-------------------------------------------------------------------------------------------------
+## DOWNLOAD FUNCTIONS -----------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------
+## ================================================================================================
+## Download gene list from Genome.jp
 def DownloadGeneList(url, getAmount=False):
 	Amount = 0
 	with urllib.request.urlopen(url) as File:
@@ -31,9 +31,12 @@ def DownloadGeneList(url, getAmount=False):
 					if Line.startswith("Hits:"):
 						Amount = Line.split(" ",2)[1]
 						Amount = math.ceil(int(Amount)/1000)
+
+					# Start of list of entries
 					elif Line.startswith("----------"):
 						Add = True
 				else:
+					# End of list of entries
 					if Line.startswith("DBGET integrated"):
 						break
 					else:
@@ -41,22 +44,20 @@ def DownloadGeneList(url, getAmount=False):
 	print(url, "downloaded")
 	print(len(List), "gene IDs added")
 	if getAmount:
-		return(List, Amount)
+		return(List, Amount) 	# Required for the first call to get the number of pages
 	else:
-		return(List)
+		return(List)	# For all subsequent pages
 
-
-# Download UniProt protein entry
+## ================================================================================================
+## Download UniProt protein entry
 def DownloadEntryUniProt(ID):
 	url = "https://www.genome.jp/entry/up:" + str(ID)
 	with urllib.request.urlopen(url) as Input:
-		Dict = {"ID": ID}
-		Dict["Sequence"] = ""
+		Dict = {"ID": ID, "Sequence": ""}
 		TaxString = ""
 		InSequence = False
 		InDomain = False
 		DomainID = 0
-		Domains = []
 		for Line in Input:
 			Line = Line.decode("utf-8").strip()
 			Line = re.sub('<[^>]*>', '', Line)
@@ -71,6 +72,8 @@ def DownloadEntryUniProt(ID):
 					elif Line.startswith("DR"):
 						if "KEGG" in Line:
 							Dict["KEGG"] = Line.split(";")[1].strip()
+
+					# Each domain is stored in 3 columns: D[n]-Name, D[n]-Start, D[n]-End
 					elif Line.startswith("FT"):
 						if "DOMAIN" in Line:
 							InDomain = True
@@ -81,7 +84,10 @@ def DownloadEntryUniProt(ID):
 						elif InDomain and "/note=" in Line:
 							Dict[DID + "Name"] = Line.split("\"")[1]
 							inDomain = False
+
+					# The amino acid sequence is the last information on the page
 					elif InSequence:
+						# Separator between data sets of different proteins
 						if Line.startswith("//"):
 							break
 						else:
@@ -90,6 +96,8 @@ def DownloadEntryUniProt(ID):
 						InSequence = True
 				except IndexError:
 					pass
+
+	# Extract and store the taxonomic classification and Kingdom-Phylum
 	try:
 		Kingdom, Phylum = TaxString.split("; ",3)[:2]
 		Dict["Taxonomy"] = Kingdom + "-" + Phylum
@@ -99,11 +107,11 @@ def DownloadEntryUniProt(ID):
 	return(Dict)
 
 
-##------------------------------------------------------
-## CLEANUP DATA FUNCTIONS
-##------------------------------------------------------
-
-# Convert downloaded KEGG gene text to table
+##-------------------------------------------------------------------------------------------------
+## CLEANUP DATA FUNCTIONS -------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------
+## ================================================================================================
+## Convert downloaded KEGG gene text to table
 def CleanKEGG(Data):
 	ListOfDicts = []
 	for Line in Data:
@@ -126,7 +134,8 @@ def CleanKEGG(Data):
 		DataFrame = DataFrame[["ID", "KO ID", "#EC", "Name"]]
 	return(DataFrame)
 
-# Convert downloaded UniProt gene text to table
+## ================================================================================================
+## Convert downloaded UniProt gene text to table
 def CleanUniProt(Data):
 	ListOfDicts = []
 	for Line in Data:
@@ -146,7 +155,8 @@ def CleanUniProt(Data):
 	DataFrame = pd.DataFrame(ListOfDicts)
 	return(DataFrame)
 
-# Convert downloaded PDB gene text to table
+## ================================================================================================
+## Convert downloaded PDB gene text to table
 def CleanPDB(Data):
 	ListOfDicts = []
 	for Line in Data:

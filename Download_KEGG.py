@@ -1,6 +1,10 @@
 #!/usr/bin/python
-# Written in Python 3.7 in 2022 by A.L.O. Gaenssle
-# Downloads data from the KEGG database
+# Written in Python 3.10 in 2023 by A.L.O. Gaenssle
+
+# MODULE: DOWNLOAD PROTEIN DATA from KEGG
+# -> downloads information of protein entries by ID in chunks
+# -> downloads all organism ids available on KEGG and their taxonomic classification
+# -> downloads all motifs (domain architecture) of each given protein ID
 
 import pandas as pd
 from io import StringIO
@@ -11,10 +15,12 @@ import urllib.request
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
-##------------------------------------------------------
-## DOWNLOAD FUNCTIONS
-##------------------------------------------------------
-# Download Info for each protein from KEGG
+##-------------------------------------------------------------------------------------------------
+## DOWNLOAD FUNCTIONS -----------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------
+## ================================================================================================
+## SUBFUNCTION: of DownloadProteinEntries()
+## Download Info for each protein from KEGG
 def GetDetailedData(Entry, ID):
 	Dict = {"ID": ID, "orgID": ID.split(":",1)[0],"AASeq": ""}
 	inAASeq = False
@@ -37,7 +43,8 @@ def GetDetailedData(Entry, ID):
 				inAASeq = True
 	return(Dict)
 
-# Download protein entries from KEGG -> in chunks of 10 gene IDs --> KEGG-get
+## ================================================================================================
+## Download protein entries from KEGG -> in chunks of 10 gene IDs --> KEGG-get
 def DownloadProteinEntries(Chunked_List):
 	Data = []
 	Entry = []
@@ -55,7 +62,8 @@ def DownloadProteinEntries(Chunked_List):
 			Entry.append(Line)
 	return(Data)
 
-# Download all genome taxonomy from KEGG --> KEGG-list
+## ================================================================================================
+## Download all genome taxonomy from KEGG --> KEGG-list
 def DownloadOrganismsTemp(Name="organism"):
 	print("Download organism taxonomy. . .")
 	Entry = REST.kegg_list(Name).read()
@@ -67,7 +75,8 @@ def DownloadOrganismsTemp(Name="organism"):
 	print(DataFrame.head())
 	return(DataFrame)
 
-# Download domain motifs (architecture) for each gene ID from KEGG
+## ================================================================================================
+## Download domain motifs (architecture) for each gene ID from KEGG
 def DownloadMotif(ID):
 	Data = []
 	NewDomains = []
