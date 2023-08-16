@@ -79,35 +79,33 @@ def DownloadOrganismsTemp(Name="organism"):
 ## Download domain motifs (architecture) for each gene ID from KEGG
 def DownloadMotif(ID):
 	Data = []
-	NewDomains = []
-	Organism = ""
-	SubList = []
+	Domains = []
+	Row = ""
+	inDomains = False
+	Index = 1
 	url = "https://www.kegg.jp/ssdb-bin/ssdb_motif?kid=" + ID
 	with urllib.request.urlopen(url) as File:
 		for Line in File:
 			Line = Line.decode("utf-8").strip().replace(" : ", "")
 			Line = re.sub('<[^>]*>', '|', Line)
+			Line = Line.replace("&nbsp;", "")
 			Line = Line.split("|")
 			Line = [i for i in Line if i]
 			if Line != []:
 				Data.append(Line)
-		for Index in range(len(Data)):
-			Line = Data[Index]
-			if Line[0].startswith("Organism"):
-				try:
-					Organism = Line[1]
-				except IndexError:
-					Organism = "N.D."
-			if Line[0].startswith("pf:"):
-				Line[0] = Line[0].split(":",1)[1]
-				if Line[3] == "&nbsp;":
-					Line[3] = "N.D."
-					SubList = [ID, Organism] + Line
+		for Line in Data:
+			if inDomains:			
+				if Line[0].startswith("pf:"):
+					if Row != "":
+						Index += 1
+						Domains.append(Row)
+					Row = [ID, Index, Line[0].split(":",1)[1]] + Line[1:]
 				else:
-					SubList = [ID, Organism] + Line + Data[Index+1]
-				SubList[3] = "{:03d}".format(int(SubList[3]))
-				if SubList not in NewDomains:
-					NewDomains.append(SubList)
-	NewDomains.sort(key = lambda x: x[3])
+					if Line[0].startswith("["):
+						Domains.append(Row)
+						break
+					Row += Line
+			elif Line[0] == "Motif id":
+				inDomains = True
 	print(ID, "downloaded")
-	return(NewDomains)
+	return(Domains)

@@ -158,13 +158,46 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
 	return(DataFrame)
 
+## ================================================================================================
+## Download all domain motifs for all given IDs from KEGG
+def DownloadMotifKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
+	print("Download motif for", len(IDList), ". . .")
+
+	# Create clusters of sequences to generate smaller files (in case the download crashes)
+	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
+	for ClusterID in range(len(ClusteredList)):
+		print("Download cluster", ClusterID+1, "of", len(ClusteredList))
+		FragmentFile = FilePath + "_" + str(ClusterID+1)
+		print(FragmentFile)
+
+		# Ignore all files that have already been downloaded
+		if os.path.exists(FragmentFile):
+			print("File already exists, skip to next cluster")
+		else:
+			ListOfLists = []
+			if Multiprocess == "y":
+				ClusteredListOfLists = MultiProcessing(ClusteredList[ClusterID],  KEGG.DownloadMotif)
+				ListOfLists = [Entry for Cluster in ClusteredListOfLists for Entry in Cluster]
+			else:
+				for ID in ClusteredList[ClusterID]:
+					ListOfLists.extend(KEGG.DownloadMotif(ID))
+			ColNames= ["ID", "Index","Domain", "Start", "End", "Definition", "E-Value", "Score"]
+			MotifTable = pd.DataFrame(ListOfLists, columns=ColNames)
+			IE.ExportDataFrame(MotifTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
+			print("Done!\n->", len(MotifTable), "of", len(ClusteredList[ClusterID]), "found")
+
+	# After all entries have been downloaded, combine all fragments into one dataframe
+	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
+	return(DataFrame)
+	# 		print("Table downloaded with", len(Table), "entries")
+	# 		IE.ExportNestedList(Table, FragmentFile, Header)
+	# IE.CombineFiles(OutputFragments, OutputFolder, OutputFile, Header)
 
 ## ------------------------------------------------------------------------------------------------
 ## SCRIPT -----------------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
 
 # Skip manual imput section
-# SpeedUp = "y"
 Multiprocess = "y"
 Folder = "DUF5727"
 # Folder = "DUF1735"
@@ -175,16 +208,17 @@ Name = "DUF5727"
 DBList = ["UniProt", "KEGG"]
 # DBList = ["UniProt", "KEGG", "PDB"]
 # DBList = ["PDB"]
-Action = "idm"
+Action = "m"
 
 
 IE.CreateFolder(Folder + "/Input")
 IE.CreateFolder(Folder + "/Output")
 
 for DB in DBList:
+	FileName = Name + "_" + DB
 	# Download Sequence IDs from UniProt, KEGG and/or PDB
 	if any(s in ["i", "d", "m"] for s in Action):
-		InputFile = os.path.join(Folder, "Input", Name + "_" + DB + FileType)
+		InputFile = os.path.join(Folder, "Input", FileName + FileType)
 		if not os.path.exists(InputFile):
 			OutputFile = os.path.join(Folder, "Input", Name)
 			DownloadList(Name, OutputFile, DB, FileType, Sep, Ask)
@@ -194,9 +228,9 @@ for DB in DBList:
 		try:
 			DataFrame = pd.read_csv(InputFile, sep=Sep)
 			IDList = DataFrame["ID"][:50].tolist()
-			OutputPath = os.path.join(Folder, "Output", Name + "_" + DB + "_Protein")
+			OutputPath = os.path.join(Folder, "Output", FileName + "_Protein")
 			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
-			FragmentFile = os.path.join(FragmentFolder, Name + "_" + DB + "_Protein")
+			FragmentFile = os.path.join(FragmentFolder, FileName + "_Protein")
 			if DB == "UniProt":
 				Detailed = DownloadEntryUniProt(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
 			elif DB == "KEGG":
@@ -210,8 +244,12 @@ for DB in DBList:
 	if "m" in Action and DB == "KEGG":
 		DataFrame = pd.read_csv(InputFile, sep=Sep)
 		IDList = DataFrame["ID"][:50].tolist()
+		OutputPath = os.path.join(Folder, "Output", FileName + "_Motif")
+		FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
+		FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
 		# print(IDList)
-		OutputFile = Name + "_KEGG_Motif.txt"
-		print(OutputFile)
+		# OutputFile = Name + "_KEGG_Motif.txt"
+		# print(OutputFile)
 		# OutputFragments = IE.CreateFolder(Folder + "/Output/" + Name + "_KEGG_MotifFragments")
-		# DownloadMotifKEGG(IDList, OutputFile, Folder + "/Output/", OutputFragments, Multiprocess=SpeedUp)
+		DataFrame = DownloadMotifKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
+		IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
