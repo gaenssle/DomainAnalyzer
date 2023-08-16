@@ -46,12 +46,6 @@ def MultiProcessing(IDList, Function):
 		pool.join()
 	return(Import)
 
-# # Divide the list of Gene IDs into a nested list of clusters (for multiprcessing)
-# def GetChunk(List, ClusterSize=250):
-# 	ClusteredList = [List[x:x+ClusterSize] for x in range(0, len(List), ClusterSize)]
-# 	return(ClusteredList)
-
-
 ## ----------------------------------------------------------------------------------------------------
 ## MAIN FUNCTIONS
 ## ----------------------------------------------------------------------------------------------------
@@ -83,7 +77,7 @@ def DownloadList(Name, OutputFile, DBList, FileType, Sep, Ask):
 				IE.ExportDataFrame(GeneTable, OutputFile, Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
 
 
-# Download details for all given IDs from UniProt, including taxonomy, sequence and Names
+# Download details for all given IDs from UniProt, including taxonomy, sequence and names
 def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
 	print("Download protein data for", len(IDList), ". . .")
 	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
@@ -121,18 +115,17 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 			print("File already exists, skip to next cluster\n")
 		else:
 			if Multiprocess == "y":
-				ListOfDicts = MultiProcessing(ClusterChunk, KEGG.DownloadProteinEntries)
-				# for Set in Import:
-				# 	for Item in Set:
-				# 		Table[Item[0]] = Item[1:]
+				ClusteredListOfDicts = MultiProcessing(ClusterChunk, KEGG.DownloadProteinEntries)
+				ListOfDicts = [Entry for Cluster in ClusteredListOfDicts for Entry in Cluster]
 			else:
 				ListOfDicts = []
 				for Chunk in ClusterChunk:
 					Set =  KEGG.DownloadProteinEntries(Chunk)
 					ListOfDicts.extend(Set)
 			ProteinTable = pd.DataFrame(ListOfDicts)
-			print("Done!\n->", len(ProteinTable), "of", len(ClusteredList[ClusterID]), "found")
+			ProteinTable = pd.merge(ProteinTable, Organisms, on=["orgID"],  how="left")
 			IE.ExportDataFrame(ProteinTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
+			print("Done!\n->", len(ProteinTable), "of", len(ClusteredList[ClusterID]), "found")
 	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
 	return(DataFrame)
 
@@ -143,7 +136,7 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 
 # Skip manual imput section
 # SpeedUp = "y"
-Multiprocess = "n"
+Multiprocess = "y"
 Folder = "DUF5727"
 # Folder = "DUF1735"
 Name = "DUF5727"
@@ -182,7 +175,5 @@ if "d" in Action:
 				Detailed = DownloadEntryKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
 		except FileNotFoundError:
 			print(DB, "does not contain any items for domain", Name)
-		# print(DataFrame.head())
-		# print(Detailed.head())
 		DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="outer")
 		IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)

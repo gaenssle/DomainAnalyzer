@@ -2,6 +2,8 @@
 # Written in Python 3.7 in 2022 by A.L.O. Gaenssle
 # Downloads data from the KEGG database
 
+import pandas as pd
+from io import StringIO
 import re
 import Bio
 from Bio.KEGG import REST
@@ -9,15 +11,12 @@ import urllib.request
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
-# Own modules
-import Import_Export as IE
-
 ##------------------------------------------------------
 ## DOWNLOAD FUNCTIONS
 ##------------------------------------------------------
 # Download Info for each protein from KEGG
 def GetDetailedData(Entry, ID):
-	Dict = {"ID": ID,"AASeq": ""}
+	Dict = {"ID": ID, "orgID": ID.split(":",1)[0],"AASeq": ""}
 	inAASeq = False
 	for Line in Entry:
 		Line = re.sub("\s\s+" , " ", Line)
@@ -36,7 +35,6 @@ def GetDetailedData(Entry, ID):
 			elif Line.startswith("AASEQ"):
 				Dict["AALength"] = Line.split(" ",1)[1]
 				inAASeq = True
-	# ProteinData = [ID, UniProt, Organism, AALength, AASeq]
 	return(Dict)
 
 # Download protein entries from KEGG -> in chunks of 10 gene IDs --> KEGG-get
@@ -61,15 +59,13 @@ def DownloadProteinEntries(Chunked_List):
 def DownloadOrganismsTemp(Name="organism"):
 	print("Download organism taxonomy. . .")
 	Entry = REST.kegg_list(Name).read()
-	List = Entry.split("\n")
-	Table = {}
-	while("" in List) :
-		List.remove("")
-	for ID in List:
-		SubList = ID.split("\t")
-		Taxonomy = "-".join(SubList[3].split(";",3)[1:3]).split(" - ",1)[0]
-		Table[SubList[1]] = Taxonomy
-	return(Table)
+	Entry = Entry.replace(";" , "\t")
+	ColList = ["ID long", "orgID", "Organism", "Kingdom", "Phylum", "Class", "Order"]
+	DataFrame = pd.read_csv(StringIO(Entry), sep="\t", names=ColList)
+	DataFrame["Taxonomy"] = DataFrame["Kingdom"] + "-" + DataFrame["Phylum"]
+	DataFrame = DataFrame[['orgID','Taxonomy']]
+	print(DataFrame.head())
+	return(DataFrame)
 
 # Download domain motifs (architecture) for each gene ID from KEGG
 def DownloadMotif(ID):
