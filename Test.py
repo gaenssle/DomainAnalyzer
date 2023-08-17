@@ -51,31 +51,32 @@ def MultiProcessing(IDList, Function):
 ## ------------------------------------------------------------------------------------------------
 ## ================================================================================================
 ## Download all gene IDs associated with the supplied domain name from KEGG, UniProt and PDB
-def DownloadList(Name, OutputFile, DB, FileType, Sep, Ask):
+def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 	print("\nNow downloading gene IDs containing domain", Name, ". . .\n(Speed depends on internet connection)\n")
 
 	# Create the required url with the following fragments
 	urlGeneList = "https://www.genome.jp/dbget-bin/get_linkdb?-t+"
-	urlName = "+pf:"
+	urlName = "+" + SearchType + ":"
+	# SearchType = "+ps:"
 	urlPage = "+-p+"
 	urlKEGG = "genes"
 	AddToName = "_" + DB
-	DB = DB.replace("KEGG", urlKEGG)
-	urlInitial = urlGeneList + DB.lower() + urlName + Name
+	DB = DB.replace("KEGG", urlKEGG).lower()
+	urlInitial = urlGeneList + DB + urlName + Name
 
 	# Download all genes from the first page and then cycle through all subsequent pages
 	List, Pages = Genome.DownloadGeneList(urlInitial, getAmount=True)
 	for Page in range(2, Pages+1):
-		urlNew = urlGeneList + DB.lower() + urlPage + str(Page) + urlName + Name
+		urlNew = urlGeneList + DB + urlPage + str(Page) + urlName + Name
 		List.extend(Genome.DownloadGeneList(urlNew))
 
 	# Extract all information from the entries and convert into pandas dataframe
 	if List != []:
-		if DB == "UniProt":
+		if DB == "uniprot" or DB == "swissprot":
 			GeneTable = Genome.CleanUniProt(List)
 		elif DB == "genes":
 			GeneTable = Genome.CleanKEGG(List)
-		elif DB == "PDB":
+		else:
 			GeneTable = Genome.CleanPDB(List)
 		if len(GeneTable.index) != 0:
 			print("Data found for", len(GeneTable.index), "entries\n")
@@ -199,17 +200,18 @@ def DownloadMotifKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 
 # Skip manual imput section
 Multiprocess = "y"
-Folder = "DUF5727"
+# Folder = "DUF5727"
+Folder = "Test"
 # Folder = "DUF1735"
-Name = "DUF5727"
+Name = "PS00812"
 # Name = "DUF1735"
 # DBList = ["KEGG"]
 # DBList = ["UniProt"]
-DBList = ["UniProt", "KEGG"]
-# DBList = ["UniProt", "KEGG", "PDB"]
+# DBList = ["UniProt", "KEGG"]
+DBList = ["UniProt", "KEGG", "PDB", "swissprot"]
 # DBList = ["PDB"]
-Action = "m"
-
+Action = "dm"
+SearchType = "ps"
 
 IE.CreateFolder(Folder + "/Input")
 IE.CreateFolder(Folder + "/Output")
@@ -221,35 +223,39 @@ for DB in DBList:
 		InputFile = os.path.join(Folder, "Input", FileName + FileType)
 		if not os.path.exists(InputFile):
 			OutputFile = os.path.join(Folder, "Input", Name)
-			DownloadList(Name, OutputFile, DB, FileType, Sep, Ask)
+			DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask)
 
 	# download protein data from UniProt and/or KEGG
-	if "d" in Action:
+	if "d" in Action and DB.lower() in ["uniprot", "swissprot", "kegg"]:
 		try:
 			DataFrame = pd.read_csv(InputFile, sep=Sep)
 			IDList = DataFrame["ID"][:50].tolist()
 			OutputPath = os.path.join(Folder, "Output", FileName + "_Protein")
 			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
 			FragmentFile = os.path.join(FragmentFolder, FileName + "_Protein")
-			if DB == "UniProt":
-				Detailed = DownloadEntryUniProt(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
-			elif DB == "KEGG":
+			if DB == "KEGG":
 				Detailed = DownloadEntryKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
+			else:
+				Detailed = DownloadEntryUniProt(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
+			DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="outer")
+			IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
 		except FileNotFoundError:
 			print(DB, "does not contain any items for domain", Name)
-		DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="outer")
-		IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
+
 
 	# Download motif data from KEGG
 	if "m" in Action and DB == "KEGG":
-		DataFrame = pd.read_csv(InputFile, sep=Sep)
-		IDList = DataFrame["ID"][:50].tolist()
-		OutputPath = os.path.join(Folder, "Output", FileName + "_Motif")
-		FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
-		FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
-		# print(IDList)
-		# OutputFile = Name + "_KEGG_Motif.txt"
-		# print(OutputFile)
-		# OutputFragments = IE.CreateFolder(Folder + "/Output/" + Name + "_KEGG_MotifFragments")
-		DataFrame = DownloadMotifKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
-		IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
+		try:
+			DataFrame = pd.read_csv(InputFile, sep=Sep)
+			IDList = DataFrame["ID"][:50].tolist()
+			OutputPath = os.path.join(Folder, "Output", FileName + "_Motif")
+			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
+			FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
+			# print(IDList)
+			# OutputFile = Name + "_KEGG_Motif.txt"
+			# print(OutputFile)
+			# OutputFragments = IE.CreateFolder(Folder + "/Output/" + Name + "_KEGG_MotifFragments")
+			DataFrame = DownloadMotifKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
+			IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
+		except FileNotFoundError:
+			print(DB, "does not contain any items for domain", Name)
