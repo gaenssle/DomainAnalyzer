@@ -3,33 +3,61 @@
 
 import os
 from multiprocessing import Pool
-# import re
-# import math
-# import urllib.request
-# import ssl
-# ssl._create_default_https_context = ssl._create_unverified_context
 import pandas as pd
+import argparse
 
 # Own modules
 import Import_Export as IE
 import Download_GenomeJP as Genome
 import Download_KEGG as KEGG
 # import Extract_Data as Extract
-# import Input_Questions as Input
 # import Count_Data as Count
 
 
 ## ------------------------------------------------------------------------------------------------
-## DEFAULT VALUES ---------------------------------------------------------------------------------
+## INPUT ARGUMENTS ---------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
 
-# OffsetUniProt = 3 # Offset between domain columns (Name, Start, End) for UniProt
-# OffsetKEGG = 4 # Offset between domain columns (Name, Start, End) for KEGG
-Cutoff = 0.0001 # E-value cutoff for KEGG to get only probable domains (default=0.0001)
-FileType = ".csv" # File types of all exported files (default="csv")
-Sep = ";" # Separator between the columns (default=";")
-Ask = False # Ask if files should be replaced (default=True)
-ClusterSize = 20 # Define the number of entires in which the download is saved (default=250)
+parser = argparse.ArgumentParser(description="DOMAIN ANALYZER\nThis program downloads sequences from various databases (e.g. KEGG or UniProt) via Genome.jp"
+    " The input is an id from e.g PFAM or Prosite which is used to first download all gene IDs from the desired databases and cycles through each gene ID"
+    " to download additional details. Subsequently, the data can be counted regarding e.g. taxonomy, domain architecture and sequence length")
+parser.add_argument("name", help="name of the domain")
+parser.add_argument("-m", "--multiprocess", help="turn on mutltiprocessing (only for Linux)", action="store_true")
+parser.add_argument("-ask", "--askoverwrite", help="ask before overwriting files", action="store_true")
+parser.add_argument("-db", "--dblist", help="list databases to be searched, separated by ',' (default: %(default)s)", default="UniProt;KEGG;PDB;swissprot")
+parser.add_argument("-a", "--action", help="add actions to be conducted (default: %(default)s)", default="a")
+parser.add_argument("-st", "--searchtype", help="type of the searched id (default: %(default)s)", default="pf")
+parser.add_argument("-c", "--cutoff", help="min E-Value of Pfam domains (default: %(default)s)", default=0.0001, type=int)
+parser.add_argument("-sam", "--samplesize", help="max number of downloaded entries (default: %(default)s)", default=0, type=int)
+parser.add_argument("-f", "--folder", help="name of the parent folder (default: same as 'name')")
+parser.add_argument("-cs", "--clustersize", help="entries/frament files (default: %(default)s)", default=100, type=int)
+parser.add_argument("-ft", "--filetype", help="type of the produced files (default: %(default)s)", default=".csv")
+parser.add_argument("-sep", "--separator", help="separator between columns in the output files (default: %(default)s)", default=";")
+
+# Set folder name to searched ID if not set
+args = parser.parse_args()
+if args.folder == None:
+    args.folder = args.name
+
+# Check if the given action is valid and replace with the list if == 'a'
+while all(ch in "aidmec" for ch in args.action) == False:
+    args.action = input("\nWhich action do you want to conduct?"
+        "\n- a\tconduct all actions\n- i\tdownload sequence IDs\n- d\tdownload data"
+        "\n- m\tdownload motif (for KEGG)\n- e\textract data\n- c\tcount data"
+        "\nPlease enter any or multiple of letters (e.g 'a' or 'dme' [without ''])\n")
+if "a" in args.action:
+    args.action = "idmec"
+
+# Check if given list of db is valid
+while True:
+	try:
+		args.dblist = args.dblist.replace("-","").lower().split(";")
+		break
+	except IndexError:
+		args.dblist = input("\nCannot read given list of databases"
+	        "\nPlease enter the names of the databases separated by ';'"
+	        "\nWithout spaces but can be in lower case or caps\n")
+
 
 ## ------------------------------------------------------------------------------------------------
 ## HELPFER FUNCTIONS ------------------------------------------------------------------------------
@@ -46,6 +74,7 @@ def MultiProcessing(IDList, Function):
 		pool.join()
 	return(Import)
 
+
 ## ------------------------------------------------------------------------------------------------
 ## MAIN FUNCTIONS ---------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
@@ -61,7 +90,7 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 	urlPage = "+-p+"
 	urlKEGG = "genes"
 	AddToName = "_" + DB
-	DB = DB.replace("KEGG", urlKEGG).lower()
+	DB = DB.replace("kegg", urlKEGG).lower()
 	urlInitial = urlGeneList + DB + urlName + Name
 
 	# Download all genes from the first page and then cycle through all subsequent pages
@@ -100,7 +129,7 @@ def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterS
 
 		# Download all files that have not yet been saved
 		else:
-			if Multiprocess == "y":
+			if Multiprocess:
 				ListOfDicts = MultiProcessing(ClusteredList[ClusterID],  Genome.DownloadEntryUniProt)
 			else:
 				ListOfDicts = []
@@ -114,7 +143,7 @@ def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterS
 			IE.ExportDataFrame(ProteinTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
 
 	# After all entries have been downloaded, combine all fragments into one dataframe
-	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
+	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
 	return(DataFrame)
 
 ## ================================================================================================
@@ -138,7 +167,7 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 			print("File already exists, skip to next cluster\n")
 		else:
 			# Multiprocessing saves the entries as a list of list of dictionaries
-			if Multiprocess == "y":
+			if Multiprocess:
 				ClusteredListOfDicts = MultiProcessing(ClusterChunk, KEGG.DownloadProteinEntries)
 				ListOfDicts = [Entry for Cluster in ClusteredListOfDicts for Entry in Cluster]
 			else:
@@ -156,12 +185,12 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 			print("Done!\n->", len(ProteinTable), "of", len(ClusteredList[ClusterID]), "found")
 
 	# After all entries have been downloaded, combine all fragments into one dataframe
-	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
+	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
 	return(DataFrame)
 
 ## ================================================================================================
 ## Download all domain motifs for all given IDs from KEGG
-def DownloadMotifKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
+def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, ClusterSize, Ask):
 	print("Download motif for", len(IDList), ". . .")
 
 	# Create clusters of sequences to generate smaller files (in case the download crashes)
@@ -172,11 +201,11 @@ def DownloadMotifKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 		print(FragmentFile)
 
 		# Ignore all files that have already been downloaded
-		if os.path.exists(FragmentFile):
+		if os.path.exists(FragmentFile + FileType):
 			print("File already exists, skip to next cluster")
 		else:
 			ListOfLists = []
-			if Multiprocess == "y":
+			if Multiprocess:
 				ClusteredListOfLists = MultiProcessing(ClusteredList[ClusterID],  KEGG.DownloadMotif)
 				ListOfLists = [Entry for Cluster in ClusteredListOfLists for Entry in Cluster]
 			else:
@@ -185,77 +214,94 @@ def DownloadMotifKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 			ColNames= ["ID", "Index","Domain", "Start", "End", "Definition", "E-Value", "Score"]
 			MotifTable = pd.DataFrame(ListOfLists, columns=ColNames)
 			IE.ExportDataFrame(MotifTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
-			print("Done!\n->", len(MotifTable), "of", len(ClusteredList[ClusterID]), "found")
+			print("Done!\n->", len(MotifTable), "domains for", len(ClusteredList[ClusterID]), "entries found")
 
 	# After all entries have been downloaded, combine all fragments into one dataframe
-	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep)
-	return(DataFrame)
-	# 		print("Table downloaded with", len(Table), "entries")
-	# 		IE.ExportNestedList(Table, FragmentFile, Header)
-	# IE.CombineFiles(OutputFragments, OutputFolder, OutputFile, Header)
+	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
+
+	# Remove all rows with E-Values that are empty ("-") or below the cutoff and condense the drataframe to 1 row/protein
+	DataFrame = DataFrame.sort_values(by=['ID', 'Start'])	# Sort domains by start position to ensure correct order
+	DataFrame['E-Value'] = pd.to_numeric(DataFrame['E-Value'], errors='coerce') # Remove empty-E-Values and convert to floats
+	ConcaDataFrame = DataFrame.copy()	# Make a copy to avoid errors
+	ConcaDataFrame = ConcaDataFrame[ConcaDataFrame['E-Value'] < CutOff] 	# Remove all rows with E-Values below CutOff
+	ConcaDataFrame['Index'] = ConcaDataFrame.groupby(["ID"]).cumcount()+1	# Reset the domain counting for the remaining domains
+	ConcatDataFrame = ConcaDataFrame.pivot(index="ID", columns="Index", values=["Domain", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)	# Move info for all domains for the same protein to one row
+	ConcatDataFrame.columns = [f"D{y}-{x}" for x, y in ConcatDataFrame.columns]	# Give the new columns names starting with D[n]-
+	return(DataFrame, ConcatDataFrame)
+
 
 ## ------------------------------------------------------------------------------------------------
 ## SCRIPT -----------------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
 
-# Skip manual imput section
-Multiprocess = "y"
-# Folder = "DUF5727"
-Folder = "Test"
-# Folder = "DUF1735"
-Name = "PS00812"
-# Name = "DUF1735"
-# DBList = ["KEGG"]
-# DBList = ["UniProt"]
-# DBList = ["UniProt", "KEGG"]
-DBList = ["UniProt", "KEGG", "PDB", "swissprot"]
-# DBList = ["PDB"]
-Action = "dm"
-SearchType = "ps"
+# args.name
+# args.multiprocessing
+# args.askoverwrite
+# args.dblist
+# args.action
+# args.searchtype
+# args.cutoff
+# args.folder
+# args.clustersize
+# args.filetype
+# args.separator
 
-IE.CreateFolder(Folder + "/Input")
-IE.CreateFolder(Folder + "/Output")
 
-for DB in DBList:
-	FileName = Name + "_" + DB
+
+IE.CreateFolder(os.path.join(args.folder, "Input"))
+IE.CreateFolder(os.path.join(args.folder, "Output"))
+
+
+
+for DB in args.dblist:
+	FileName = args.name + "_" + DB
 	# Download Sequence IDs from UniProt, KEGG and/or PDB
-	if any(s in ["i", "d", "m"] for s in Action):
-		InputFile = os.path.join(Folder, "Input", FileName + FileType)
+	if any(s in ["i", "d", "m"] for s in args.action):
+		InputFile = os.path.join(args.folder, "Input", FileName + args.filetype)
 		if not os.path.exists(InputFile):
-			OutputFile = os.path.join(Folder, "Input", Name)
-			DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask)
+			OutputFile = os.path.join(args.folder, "Input", args.name)
+			DownloadList(args.name, OutputFile, DB, args.searchtype, args.filetype, args.separator, args.askoverwrite)
 
 	# download protein data from UniProt and/or KEGG
-	if "d" in Action and DB.lower() in ["uniprot", "swissprot", "kegg"]:
+	if "d" in args.action and DB.lower() in ["uniprot", "swissprot", "kegg"]:
 		try:
-			DataFrame = pd.read_csv(InputFile, sep=Sep)
-			IDList = DataFrame["ID"][:50].tolist()
-			OutputPath = os.path.join(Folder, "Output", FileName + "_Protein")
+			DataFrame = pd.read_csv(InputFile, sep=args.separator)
+			IDList = DataFrame["ID"].tolist()
+			if args.samplesize != 0 and args.samplesize <= len(IDList):
+				IDList = IDList[:args.samplesize]
+			OutputPath = os.path.join(args.folder, "Output", FileName + "_Protein")
 			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
 			FragmentFile = os.path.join(FragmentFolder, FileName + "_Protein")
-			if DB == "KEGG":
-				Detailed = DownloadEntryKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
+			if DB == "kegg":
+				Detailed = DownloadEntryKEGG(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
 			else:
-				Detailed = DownloadEntryUniProt(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
-			DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="outer")
-			IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
+				Detailed = DownloadEntryUniProt(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+			DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="right")
+			IE.ExportDataFrame(DataFrame, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 		except FileNotFoundError:
-			print(DB, "does not contain any items for domain", Name)
+			print(DB, "does not contain any items for domain", args.name)
 
 
 	# Download motif data from KEGG
-	if "m" in Action and DB == "KEGG":
+	if "m" in args.action and DB == "kegg":
 		try:
-			DataFrame = pd.read_csv(InputFile, sep=Sep)
-			IDList = DataFrame["ID"][:50].tolist()
-			OutputPath = os.path.join(Folder, "Output", FileName + "_Motif")
+			DataFrame = pd.read_csv(InputFile, sep=args.separator)
+			IDList = DataFrame["ID"].tolist()
+			print(args.samplesize, len(IDList))
+			if args.samplesize != 0 and args.samplesize <= len(IDList):
+				IDList = IDList[:args.samplesize]
+			OutputPath = os.path.join(args.folder, "Output", FileName + "_Motif")
 			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
 			FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
-			# print(IDList)
-			# OutputFile = Name + "_KEGG_Motif.txt"
-			# print(OutputFile)
-			# OutputFragments = IE.CreateFolder(Folder + "/Output/" + Name + "_KEGG_MotifFragments")
-			DataFrame = DownloadMotifKEGG(IDList, FragmentFile, FileType, Sep, Multiprocess, ClusterSize, Ask)
-			IE.ExportDataFrame(DataFrame, OutputPath, Ask=Ask)
+			Motifs, ConcatMotifs = DownloadMotifKEGG(IDList, FragmentFile, args.cutoff, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+			IE.ExportDataFrame(Motifs, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 		except FileNotFoundError:
-			print(DB, "does not contain any items for domain", Name)
+			print(DB, "does not contain any items for domain", args.name)
+		try:
+			ProteinFile = os.path.join(args.folder, "Output", FileName + "_Protein" + args.filetype)
+			ProteinData = pd.read_csv(ProteinFile, sep=args.separator)
+			DataFrame = pd.merge(ProteinData, ConcatMotifs, on=["ID"],  how="right")	
+		except FileNotFoundError:
+			DataFrame = pd.merge(DataFrame, ConcatMotifs, on=["ID"],  how="right")
+			print("Motif data is stored without protein data since the protein file is missing")
+		IE.ExportDataFrame(DataFrame, OutputPath + "_cutoff" + str(args.cutoff), FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)

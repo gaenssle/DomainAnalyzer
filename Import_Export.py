@@ -45,8 +45,9 @@ def CheckFileExists(FileName, Ask):
 
 ## ================================================================================================
 ## Copy all data from Fragment files (250-500 genes/file) into one large file
-def CombineFiles(Folder, Sep):
-	FileList = os.listdir(Folder)
+def CombineFiles(Folder, Sep, FileType):
+	FileListAll = os.listdir(Folder)
+	FileList = list(filter(lambda File: File.endswith(FileType), FileListAll))
 	DataList = []
 	for File in FileList:
 		FilePath = os.path.join(Folder, File)

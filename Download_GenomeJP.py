@@ -135,7 +135,7 @@ def CleanKEGG(Data):
 	return(DataFrame)
 
 ## ================================================================================================
-## Convert downloaded UniProt gene text to table
+## Convert downloaded UniProt/SWISS-Prot gene text to table
 def CleanUniProt(Data):
 	ListOfDicts = []
 	for Line in Data:
@@ -156,7 +156,7 @@ def CleanUniProt(Data):
 	return(DataFrame)
 
 ## ================================================================================================
-## Convert downloaded PDB gene text to table
+## Convert downloaded linked gene text to table (e.g. PDB)
 def CleanPDB(Data):
 	ListOfDicts = []
 	for Line in Data:
