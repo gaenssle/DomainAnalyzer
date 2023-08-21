@@ -58,6 +58,8 @@ while True:
 	        "\nPlease enter the names of the databases separated by ';'"
 	        "\nWithout spaces but can be in lower case or caps\n")
 
+# Supported databases have been implemented and can be downloaded
+SupportedDBs = ["uniprot", "swissprot", "kegg"]
 
 ## ------------------------------------------------------------------------------------------------
 ## HELPFER FUNCTIONS ------------------------------------------------------------------------------
@@ -263,7 +265,7 @@ for DB in args.dblist:
 			DownloadList(args.name, OutputFile, DB, args.searchtype, args.filetype, args.separator, args.askoverwrite)
 
 	# download protein data from UniProt and/or KEGG
-	if "d" in args.action and DB.lower() in ["uniprot", "swissprot", "kegg"]:
+	if "d" in args.action and DB in SupportedDBs:
 		try:
 			DataFrame = pd.read_csv(InputFile, sep=args.separator)
 			IDList = DataFrame["ID"].tolist()
@@ -305,3 +307,38 @@ for DB in args.dblist:
 			DataFrame = pd.merge(DataFrame, ConcatMotifs, on=["ID"],  how="right")
 			print("Motif data is stored without protein data since the protein file is missing")
 		IE.ExportDataFrame(DataFrame, OutputPath + "_cutoff" + str(args.cutoff), FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+
+
+	# Extract data from UniProt and/or KEGG
+	if "e" in args.action and DB in SupportedDBs:
+		# InputFile = os.path.join(args.folder, "Input", FileName +  + args.filetype)
+		FilePath = os.path.join(args.folder, "Output", FileName)
+		# InputFile = Folder + "/Output/" + Name + "_" + DB + "_Protein_all.txt"
+		# OutputFile = Folder + "/Output/" + Name + "_" + DB + "_Domains.txt"
+		if DB == "kegg":
+			InputFile = FilePath + "_Motif_cutoff" + str(args.cutoff) + args.filetype
+		else:
+			InputFile = FilePath + "_Protein" + args.filetype
+		ProteinData = pd.read_csv(InputFile, sep=args.separator)
+		DomainCols = [col for col in ProteinData if col.endswith('-Domain')]
+		MotifCols = ["ID", "UniProt", "Organism", "Taxonomy", "AALength"] + DomainCols
+		print(DomainCols)
+		print(MotifCols)
+
+		# Create a file with the domain architecture (domains are joined by '+')
+		Motifs = ProteinData[MotifCols].copy()
+		Motifs["Domains"] = Motifs[DomainCols].apply(lambda x: '+'.join(x.dropna()), axis=1)
+		Motifs = Motifs.drop(columns=DomainCols)
+		IE.ExportDataFrame(Motifs, FilePath + "_DomainArchitecture", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		# 	MotifFile = Folder + "/Output/" + Name + "_" + DB + "_Motif_all.txt"
+		# 	GeneTable, Header = IE.ImportNestedDictionary(InputFile, getHeader=True)
+		# 	MotifTable = IE.ImportNestedList(MotifFile)
+		# 	GoodDomains, Header = Extract.AddMotifKEGG(GeneTable, MotifTable, Header, Name, Cutoff, OutputFile, Ask=Ask)
+		# 	Motifs = Extract.ExtractMotifs(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
+		# 	DetailsOnly = Extract.ExtractDetails(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
+		# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
+		# else:
+		# 	GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
+		# 	Motifs = Extract.ExtractMotifs(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
+		# 	DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
+		# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
