@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Written in Python 3.10 in 2023 by A.L.O. Gaenssle
+# Written in Python 3.8 in 2023 by A.L.O. Gaenssle
 
 # MODULE: DOWNLOAD PROTEIN DATA from KEGG
 # -> downloads information of protein entries by ID in chunks
@@ -22,7 +22,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 ## SUBFUNCTION: of DownloadProteinEntries()
 ## Download Info for each protein from KEGG
 def GetDetailedData(Entry, ID):
-	Dict = {"ID": ID, "orgID": ID.split(":",1)[0],"AASeq": ""}
+	Dict = {"ID": ID, "orgID": ID.split(":",1)[0],"Sequence": ""}
 	inAASeq = False
 	for Line in Entry:
 		Line = re.sub("\s\s+" , " ", Line)
@@ -31,7 +31,7 @@ def GetDetailedData(Entry, ID):
 			if Line.startswith("NTSEQ"):
 				break
 			else:
-				Dict["AASeq"] += Line.strip()
+				Dict["Sequence"] += Line.strip()
 		if inAASeq == False:
 			if Line.startswith("ORGANISM") or Line.startswith("VIRUS"):
 				Line = Line.split(" ",1)[1].strip()
@@ -39,7 +39,7 @@ def GetDetailedData(Entry, ID):
 			elif "UniProt" in Line:
 				Dict["UniProt"] = Line.split(" ",1)[1]
 			elif Line.startswith("AASEQ"):
-				Dict["AALength"] = Line.split(" ",1)[1]
+				Dict["Length"] = Line.split(" ",1)[1]
 				inAASeq = True
 	return(Dict)
 
@@ -88,15 +88,15 @@ def DownloadMotif(ID):
 		for Line in File:
 			Line = Line.decode("utf-8").strip().replace(" : ", "")
 			Line = re.sub('<[^>]*>', '|', Line)
-			Line = Line.replace("&nbsp;", "")
+			Line = Line.replace("&nbsp;", "-")
 			Line = Line.split("|")
 			Line = [i for i in Line if i]
-			if Line != []:
+			if Line:
 				Data.append(Line)
 		for Line in Data:
-			if inDomains:			
+			if inDomains:
 				if Line[0].startswith("pf:"):
-					if Row != "":
+					if Row:
 						Index += 1
 						Domains.append(Row)
 					Row = [ID, Index, Line[0].split(":",1)[1]] + Line[1:]

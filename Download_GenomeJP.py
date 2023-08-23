@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Written in Python 3.10 in 2023 by A.L.O. Gaenssle
+# Written in Python 3.8 in 2023 by A.L.O. Gaenssle
 
 # MODULE: DOWNLOAD GENE/PROTEIN DATA from Genome.jp
 # -> downloads all IDs associated with the input (domain) id
@@ -26,7 +26,7 @@ def DownloadGeneList(url, getAmount=False):
 		for Line in File:
 			Line = Line.decode("utf-8").strip()
 			Line = re.sub('<[^>]*>', '', Line)
-			if Line != "":
+			if Line:
 				if Add == False:
 					if Line.startswith("Hits:"):
 						Amount = Line.split(" ",2)[1]
@@ -61,7 +61,7 @@ def DownloadEntryUniProt(ID):
 		for Line in Input:
 			Line = Line.decode("utf-8").strip()
 			Line = re.sub('<[^>]*>', '', Line)
-			if Line != "":
+			if Line:
 				try:
 					if Line.startswith("ID"):
 						Dict["Length"] = Line.rsplit(";",1)[1].rsplit(" ",1)[0].strip()

@@ -1,6 +1,6 @@
 # Domain Analyzer
-created 2022 by gaenssle
-written in Python 3.7
+created 2023 by gaenssle
+written in Python 3.8
 
 for questions, write to A.L.O.Gaenssle@rug.nl
 

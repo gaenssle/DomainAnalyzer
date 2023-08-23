@@ -1,7 +1,8 @@
 #!/usr/bin/python
-# Written in Python 3.10 in 2023 by A.L.O. Gaenssle
+# Written in Python 3.8 in 2023 by A.L.O. Gaenssle
 
 import os
+import re
 from multiprocessing import Pool
 import pandas as pd
 import argparse
@@ -27,7 +28,7 @@ parser.add_argument("-ask", "--askoverwrite", help="ask before overwriting files
 parser.add_argument("-db", "--dblist", help="list databases to be searched, separated by ',' (default: %(default)s)", default="UniProt;KEGG;PDB;swissprot")
 parser.add_argument("-a", "--action", help="add actions to be conducted (default: %(default)s)", default="a")
 parser.add_argument("-st", "--searchtype", help="type of the searched id (default: %(default)s)", default="pf")
-parser.add_argument("-c", "--cutoff", help="min E-Value of Pfam domains (default: %(default)s)", default=0.0001, type=int)
+parser.add_argument("-c", "--cutoff", help="min E-Value of Pfam domains (default: %(default)s)", default=0.0001, type=float)
 parser.add_argument("-sam", "--samplesize", help="max number of downloaded entries (default: %(default)s)", default=0, type=int)
 parser.add_argument("-f", "--folder", help="name of the parent folder (default: same as 'name')")
 parser.add_argument("-cs", "--clustersize", help="entries/frament files (default: %(default)s)", default=100, type=int)
@@ -102,7 +103,7 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 		List.extend(Genome.DownloadGeneList(urlNew))
 
 	# Extract all information from the entries and convert into pandas dataframe
-	if List != []:
+	if List:
 		if DB == "uniprot" or DB == "swissprot":
 			GeneTable = Genome.CleanUniProt(List)
 		elif DB == "genes":
@@ -112,6 +113,7 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 		if len(GeneTable.index) != 0:
 			print("Data found for", len(GeneTable.index), "entries\n")
 			IE.ExportDataFrame(GeneTable, OutputFile, Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
+	return(bool(List))
 
 ## ================================================================================================
 ## Download details for all given IDs from UniProt, including taxonomy, sequence and names
@@ -179,7 +181,7 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 					ListOfDicts.extend(Set)
 
 			# Only download the list of organisms on KEGG if needed and add to dataframe
-			if len(Organisms) == 0:
+			if not Organisms:
 				Organisms = KEGG.DownloadOrganismsTemp()
 			ProteinTable = pd.DataFrame(ListOfDicts)
 			ProteinTable = pd.merge(ProteinTable, Organisms, on=["orgID"],  how="left")
@@ -213,7 +215,7 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 			else:
 				for ID in ClusteredList[ClusterID]:
 					ListOfLists.extend(KEGG.DownloadMotif(ID))
-			ColNames= ["ID", "Index","Domain", "Start", "End", "Definition", "E-Value", "Score"]
+			ColNames= ["ID", "Index","Name", "Start", "End", "Definition", "E-Value", "Score"]
 			MotifTable = pd.DataFrame(ListOfLists, columns=ColNames)
 			IE.ExportDataFrame(MotifTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
 			print("Done!\n->", len(MotifTable), "domains for", len(ClusteredList[ClusterID]), "entries found")
@@ -224,10 +226,10 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 	# Remove all rows with E-Values that are empty ("-") or below the cutoff and condense the drataframe to 1 row/protein
 	DataFrame = DataFrame.sort_values(by=['ID', 'Start'])	# Sort domains by start position to ensure correct order
 	DataFrame['E-Value'] = pd.to_numeric(DataFrame['E-Value'], errors='coerce') # Remove empty-E-Values and convert to floats
-	ConcaDataFrame = DataFrame.copy()	# Make a copy to avoid errors
-	ConcaDataFrame = ConcaDataFrame[ConcaDataFrame['E-Value'] < CutOff] 	# Remove all rows with E-Values below CutOff
-	ConcaDataFrame['Index'] = ConcaDataFrame.groupby(["ID"]).cumcount()+1	# Reset the domain counting for the remaining domains
-	ConcatDataFrame = ConcaDataFrame.pivot(index="ID", columns="Index", values=["Domain", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)	# Move info for all domains for the same protein to one row
+	ConcatDataFrame = DataFrame.copy()	# Make a copy to avoid errors
+	ConcatDataFrame = ConcatDataFrame[ConcatDataFrame['E-Value'] < CutOff] 	# Remove all rows with E-Values below CutOff
+	ConcatDataFrame['Index'] = ConcatDataFrame.groupby(["ID"]).cumcount()+1	# Reset the domain counting for the remaining domains
+	ConcatDataFrame = ConcatDataFrame.pivot(index="ID", columns="Index", values=["Name", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)	# Move info for all domains for the same protein to one row
 	ConcatDataFrame.columns = [f"D{y}-{x}" for x, y in ConcatDataFrame.columns]	# Give the new columns names starting with D[n]-
 	return(DataFrame, ConcatDataFrame)
 
@@ -257,88 +259,92 @@ IE.CreateFolder(os.path.join(args.folder, "Output"))
 
 for DB in args.dblist:
 	FileName = args.name + "_" + DB
-	# Download Sequence IDs from UniProt, KEGG and/or PDB
+
+	# Download Sequence IDs from e.g. UniProt, KEGG and/or PDB
 	if any(s in ["i", "d", "m"] for s in args.action):
 		InputFile = os.path.join(args.folder, "Input", FileName + args.filetype)
 		if not os.path.exists(InputFile):
 			OutputFile = os.path.join(args.folder, "Input", args.name)
-			DownloadList(args.name, OutputFile, DB, args.searchtype, args.filetype, args.separator, args.askoverwrite)
-
-	# download protein data from UniProt and/or KEGG
-	if "d" in args.action and DB in SupportedDBs:
-		try:
+			Hits = DownloadList(args.name, OutputFile, DB, args.searchtype, args.filetype, args.separator, args.askoverwrite)
+		if os.path.exists(InputFile):
 			DataFrame = pd.read_csv(InputFile, sep=args.separator)
 			IDList = DataFrame["ID"].tolist()
+			Hits = bool(IDList)
 			if args.samplesize != 0 and args.samplesize <= len(IDList):
 				IDList = IDList[:args.samplesize]
-			OutputPath = os.path.join(args.folder, "Output", FileName + "_Protein")
-			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
-			FragmentFile = os.path.join(FragmentFolder, FileName + "_Protein")
-			if DB == "kegg":
-				Detailed = DownloadEntryKEGG(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
-			else:
-				Detailed = DownloadEntryUniProt(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
-			DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="right")
-			IE.ExportDataFrame(DataFrame, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		except FileNotFoundError:
-			print(DB, "does not contain any items for domain", args.name)
+		if Hits == False or DB not in SupportedDBs:
+			continue
 
+	# download protein data from UniProt and/or KEGG
+	if "d" in args.action:
+		OutputPath = os.path.join(args.folder, "Output", FileName + "_Protein")
+		FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
+		FragmentFile = os.path.join(FragmentFolder, FileName + "_Protein")
+		if DB == "kegg":
+			Detailed = DownloadEntryKEGG(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+		else:
+			Detailed = DownloadEntryUniProt(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+		DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="right")
+		IE.ExportDataFrame(DataFrame, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
 	# Download motif data from KEGG
 	if "m" in args.action and DB == "kegg":
-		try:
-			DataFrame = pd.read_csv(InputFile, sep=args.separator)
-			IDList = DataFrame["ID"].tolist()
-			print(args.samplesize, len(IDList))
-			if args.samplesize != 0 and args.samplesize <= len(IDList):
-				IDList = IDList[:args.samplesize]
-			OutputPath = os.path.join(args.folder, "Output", FileName + "_Motif")
-			FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
-			FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
-			Motifs, ConcatMotifs = DownloadMotifKEGG(IDList, FragmentFile, args.cutoff, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
-			IE.ExportDataFrame(Motifs, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		except FileNotFoundError:
-			print(DB, "does not contain any items for domain", args.name)
+		OutputPath = os.path.join(args.folder, "Output", FileName + "_Motif")
+		FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
+		FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
+		Motifs, ConcatMotifs = DownloadMotifKEGG(IDList, FragmentFile, args.cutoff, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+		IE.ExportDataFrame(Motifs, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 		try:
 			ProteinFile = os.path.join(args.folder, "Output", FileName + "_Protein" + args.filetype)
 			ProteinData = pd.read_csv(ProteinFile, sep=args.separator)
-			DataFrame = pd.merge(ProteinData, ConcatMotifs, on=["ID"],  how="right")	
+			DataFrame = pd.merge(ProteinData, ConcatMotifs, on=["ID"],  how="right")
 		except FileNotFoundError:
 			DataFrame = pd.merge(DataFrame, ConcatMotifs, on=["ID"],  how="right")
 			print("Motif data is stored without protein data since the protein file is missing")
 		IE.ExportDataFrame(DataFrame, OutputPath + "_cutoff" + str(args.cutoff), FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
-
 	# Extract data from UniProt and/or KEGG
-	if "e" in args.action and DB in SupportedDBs:
-		# InputFile = os.path.join(args.folder, "Input", FileName +  + args.filetype)
+	if "e" in args.action:
 		FilePath = os.path.join(args.folder, "Output", FileName)
-		# InputFile = Folder + "/Output/" + Name + "_" + DB + "_Protein_all.txt"
-		# OutputFile = Folder + "/Output/" + Name + "_" + DB + "_Domains.txt"
 		if DB == "kegg":
 			InputFile = FilePath + "_Motif_cutoff" + str(args.cutoff) + args.filetype
 		else:
 			InputFile = FilePath + "_Protein" + args.filetype
 		ProteinData = pd.read_csv(InputFile, sep=args.separator)
-		DomainCols = [col for col in ProteinData if col.endswith('-Domain')]
-		MotifCols = ["ID", "UniProt", "Organism", "Taxonomy", "AALength"] + DomainCols
-		print(DomainCols)
+		ProteinData=ProteinData.dropna(axis=1,how='all')
+		DomainNameCols = [col for col in ProteinData if col.endswith('-Name')]
+
+		# And remove all entries that did not have an explicit domain with the entered name
+		if args.searchtype == "pf":
+			ProteinData = ProteinData[(ProteinData[DomainNameCols] == args.name).any(axis=1)]
+		ProteinData = ProteinData.dropna(axis=1,how='all')
+		DomainNameCols = [col for col in ProteinData if col.endswith('-Name')]
+		DomainAllCols = [col for col in ProteinData if  re.search(r'^D\d+-', col)]
+		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
+		print(DomainNameCols)
+		print(DomainAllCols)
 		print(MotifCols)
+
+
+
+		Domains = ProteinData.copy()
 
 		# Create a file with the domain architecture (domains are joined by '+')
 		Motifs = ProteinData[MotifCols].copy()
-		Motifs["Domains"] = Motifs[DomainCols].apply(lambda x: '+'.join(x.dropna()), axis=1)
-		Motifs = Motifs.drop(columns=DomainCols)
+		Motifs["Domains"] = Motifs[DomainNameCols].apply(lambda x: '+'.join(x.dropna()), axis=1)
+		Motifs = Motifs.drop(columns=DomainNameCols)
 		IE.ExportDataFrame(Motifs, FilePath + "_DomainArchitecture", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		# 	MotifFile = Folder + "/Output/" + Name + "_" + DB + "_Motif_all.txt"
-		# 	GeneTable, Header = IE.ImportNestedDictionary(InputFile, getHeader=True)
-		# 	MotifTable = IE.ImportNestedList(MotifFile)
-		# 	GoodDomains, Header = Extract.AddMotifKEGG(GeneTable, MotifTable, Header, Name, Cutoff, OutputFile, Ask=Ask)
-		# 	Motifs = Extract.ExtractMotifs(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
-		# 	DetailsOnly = Extract.ExtractDetails(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
-		# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
-		# else:
-		# 	GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
-		# 	Motifs = Extract.ExtractMotifs(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
-		# 	DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
-		# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
+
+
+			# 	MotifFile = Folder + "/Output/" + Name + "_" + DB + "_Motif_all.txt"
+			# 	GeneTable, Header = IE.ImportNestedDictionary(InputFile, getHeader=True)
+			# 	MotifTable = IE.ImportNestedList(MotifFile)
+			# 	GoodDomains, Header = Extract.AddMotifKEGG(GeneTable, MotifTable, Header, Name, Cutoff, OutputFile, Ask=Ask)
+			# 	Motifs = Extract.ExtractMotifs(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
+			# 	DetailsOnly = Extract.ExtractDetails(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
+			# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
+			# else:
+			# 	GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
+			# 	Motifs = Extract.ExtractMotifs(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
+			# 	DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
+			# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)

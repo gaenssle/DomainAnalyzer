@@ -9,7 +9,7 @@ parser.add_argument("-ask", "--askoverwrite", help="ask before overwriting files
 parser.add_argument("-db", "--dblist", help="list databases to be searched, separated by ',' (default: %(default)s)", default="UniProt,KEGG;PDB,swissprot")
 parser.add_argument("-a", "--action", help="add actions to be conducted (default: %(default)s)", default="a")
 parser.add_argument("-st", "--searchtype", help="type of the searched id (default: %(default)s)", default="pf")
-parser.add_argument("-c", "--cutoff", help="min E-Value of Pfam domains (default: %(default)s)", default=0.0001, type=int)
+parser.add_argument("-c", "--cutoff", help="min E-Value of Pfam domains (default: %(default)s)", default=0.0001, type=float)
 parser.add_argument("-f", "--folder", help="name of the parent folder (default: same as 'name')")
 parser.add_argument("-cs", "--clustersize", help="entries/frament files (default: %(default)s)", default=20, type=int)
 parser.add_argument("-ft", "--filetype", help="type of the produced files (default: %(default)s)", default=".csv")

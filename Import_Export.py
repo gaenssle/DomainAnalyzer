@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Written in Python 3.10 in 2023 by A.L.O. Gaenssle
+# Written in Python 3.8 in 2023 by A.L.O. Gaenssle
 
 # MODULE: EXPORT DATA AND CHECK FILES
 # -> create new folder
