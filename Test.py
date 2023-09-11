@@ -153,7 +153,7 @@ def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterS
 ## ================================================================================================
 ## Download details for all given IDs from KEGG, including taxonomy and sequence
 def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
-	Organisms = []
+	Organisms = None
 	print("Download protein data for", len(IDList), ". . .")
 
 	# Create clusters of sequences to generate smaller files (in case the download crashes)
@@ -181,7 +181,7 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 					ListOfDicts.extend(Set)
 
 			# Only download the list of organisms on KEGG if needed and add to dataframe
-			if not Organisms:
+			if Organisms is None:
 				Organisms = KEGG.DownloadOrganismsTemp()
 			ProteinTable = pd.DataFrame(ListOfDicts)
 			ProteinTable = pd.merge(ProteinTable, Organisms, on=["orgID"],  how="left")
@@ -294,6 +294,10 @@ for DB in args.dblist:
 		FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
 		Motifs, ConcatMotifs = DownloadMotifKEGG(IDList, FragmentFile, args.cutoff, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
 		IE.ExportDataFrame(Motifs, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		if args.searchtype == "pf":	# Remove all entries that do not contain the enquired PFAM domain
+			DomainNameCols = [col for col in ConcatMotifs if col.endswith('-Name')]
+			ConcatMotifs = ConcatMotifs[(ConcatMotifs[DomainNameCols] == args.name).any(axis=1)]
+			ConcatMotifs.dropna(how='all', axis=1, inplace=True)
 		try:
 			ProteinFile = os.path.join(args.folder, "Output", FileName + "_Protein" + args.filetype)
 			ProteinData = pd.read_csv(ProteinFile, sep=args.separator)
@@ -311,7 +315,7 @@ for DB in args.dblist:
 		else:
 			InputFile = FilePath + "_Protein" + args.filetype
 		ProteinData = pd.read_csv(InputFile, sep=args.separator)
-		ProteinData=ProteinData.dropna(axis=1,how='all')
+		ProteinData.dropna(axis=1, how='all', inplace=True)
 		DomainNameCols = [col for col in ProteinData if col.endswith('-Name')]
 
 		# And remove all entries that did not have an explicit domain with the entered name
@@ -321,6 +325,7 @@ for DB in args.dblist:
 		DomainNameCols = [col for col in ProteinData if col.endswith('-Name')]
 		DomainAllCols = [col for col in ProteinData if  re.search(r'^D\d+-', col)]
 		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
+		print(ProteinData.columns)
 		print(DomainNameCols)
 		print(DomainAllCols)
 		print(MotifCols)
@@ -334,7 +339,14 @@ for DB in args.dblist:
 		Motifs["Domains"] = Motifs[DomainNameCols].apply(lambda x: '+'.join(x.dropna()), axis=1)
 		Motifs = Motifs.drop(columns=DomainNameCols)
 		IE.ExportDataFrame(Motifs, FilePath + "_DomainArchitecture", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-
+		# TaxCount = Motifs.groupby(['Taxonomy','Organism']).count()
+		ColName = "Entries"
+		CountDomains = Motifs.groupby(['Domains']).size().reset_index(name=ColName).sort_values([ColName], ascending=False)
+		CountTax = Motifs.groupby(['Taxonomy']).size().reset_index(name=ColName).sort_values([ColName], ascending=False)
+		CountOrganisms = Motifs.groupby(['Taxonomy','Organism']).size().reset_index(name=ColName).sort_values(['Taxonomy',ColName], ascending=False)
+		IE.ExportDataFrame(CountDomains, FilePath + "_CountDomains", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(CountTax, FilePath + "_CountTax", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(CountOrganisms, FilePath + "_CountOrganisms", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
 			# 	MotifFile = Folder + "/Output/" + Name + "_" + DB + "_Motif_all.txt"
 			# 	GeneTable, Header = IE.ImportNestedDictionary(InputFile, getHeader=True)

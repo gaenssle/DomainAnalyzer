@@ -83,7 +83,7 @@ def DownloadEntryUniProt(ID):
 							Dict[DID + "Start"], Dict[DID + "End"] = String.split("..",1)
 						elif InDomain and "/note=" in Line:
 							Dict[DID + "Name"] = Line.split("\"")[1]
-							inDomain = False
+							InDomain = False
 
 					# The amino acid sequence is the last information on the page
 					elif InSequence:
