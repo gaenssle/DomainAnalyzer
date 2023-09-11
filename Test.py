@@ -26,13 +26,13 @@ parser.add_argument("name", help="name of the domain")
 parser.add_argument("-m", "--multiprocess", help="turn on mutltiprocessing (only for Linux)", action="store_true")
 parser.add_argument("-ask", "--askoverwrite", help="ask before overwriting files", action="store_true")
 parser.add_argument("-db", "--dblist", help="list databases to be searched, separated by ',' (default: %(default)s)", default="UniProt;KEGG;PDB;swissprot")
-parser.add_argument("-a", "--action", help="add actions to be conducted (default: %(default)s)", default="a")
+parser.add_argument("-a", "--action", help="add actions to be conducted: a=all, i=entry IDs, d=protein data, m=KEGG motif, e=extract (default: %(default)s)", default="a")
 parser.add_argument("-st", "--searchtype", help="type of the searched id (default: %(default)s)", default="pf")
 parser.add_argument("-c", "--cutoff", help="min E-Value of Pfam domains (default: %(default)s)", default=0.0001, type=float)
 parser.add_argument("-sam", "--samplesize", help="max number of downloaded entries (default: %(default)s)", default=0, type=int)
 parser.add_argument("-f", "--folder", help="name of the parent folder (default: same as 'name')")
 parser.add_argument("-cs", "--clustersize", help="entries/frament files (default: %(default)s)", default=100, type=int)
-parser.add_argument("-ft", "--filetype", help="type of the produced files (default: %(default)s)", default=".csv")
+parser.add_argument("-ft", "--filetype", help="type of the generated files (default: %(default)s)", default=".csv")
 parser.add_argument("-sep", "--separator", help="separator between columns in the output files (default: %(default)s)", default=";")
 
 # Set folder name to searched ID if not set
@@ -238,20 +238,6 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 ## SCRIPT -----------------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
 
-# args.name
-# args.multiprocessing
-# args.askoverwrite
-# args.dblist
-# args.action
-# args.searchtype
-# args.cutoff
-# args.folder
-# args.clustersize
-# args.filetype
-# args.separator
-
-
-
 IE.CreateFolder(os.path.join(args.folder, "Input"))
 IE.CreateFolder(os.path.join(args.folder, "Output"))
 
@@ -325,11 +311,6 @@ for DB in args.dblist:
 		DomainNameCols = [col for col in ProteinData if col.endswith('-Name')]
 		DomainAllCols = [col for col in ProteinData if  re.search(r'^D\d+-', col)]
 		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
-		print(ProteinData.columns)
-		print(DomainNameCols)
-		print(DomainAllCols)
-		print(MotifCols)
-
 
 
 		Domains = ProteinData.copy()
@@ -339,7 +320,8 @@ for DB in args.dblist:
 		Motifs["Domains"] = Motifs[DomainNameCols].apply(lambda x: '+'.join(x.dropna()), axis=1)
 		Motifs = Motifs.drop(columns=DomainNameCols)
 		IE.ExportDataFrame(Motifs, FilePath + "_DomainArchitecture", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		# TaxCount = Motifs.groupby(['Taxonomy','Organism']).count()
+		
+		# Count the number of entries for each taxonomy, organism and domain architecture
 		ColName = "Entries"
 		CountDomains = Motifs.groupby(['Domains']).size().reset_index(name=ColName).sort_values([ColName], ascending=False)
 		CountTax = Motifs.groupby(['Taxonomy']).size().reset_index(name=ColName).sort_values([ColName], ascending=False)
@@ -348,15 +330,5 @@ for DB in args.dblist:
 		IE.ExportDataFrame(CountTax, FilePath + "_CountTax", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 		IE.ExportDataFrame(CountOrganisms, FilePath + "_CountOrganisms", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
-			# 	MotifFile = Folder + "/Output/" + Name + "_" + DB + "_Motif_all.txt"
-			# 	GeneTable, Header = IE.ImportNestedDictionary(InputFile, getHeader=True)
-			# 	MotifTable = IE.ImportNestedList(MotifFile)
-			# 	GoodDomains, Header = Extract.AddMotifKEGG(GeneTable, MotifTable, Header, Name, Cutoff, OutputFile, Ask=Ask)
-			# 	Motifs = Extract.ExtractMotifs(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
-			# 	DetailsOnly = Extract.ExtractDetails(GoodDomains, Header, Name, OffsetKEGG, OutputFile, Ask=Ask)
-			# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
-			# else:
-			# 	GeneTable, Header = IE.ImportNestedList(InputFile, getHeader=True)
-			# 	Motifs = Extract.ExtractMotifs(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
 			# 	DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
 			# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
