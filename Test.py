@@ -16,24 +16,53 @@ import Download_KEGG as KEGG
 
 
 ## ------------------------------------------------------------------------------------------------
-## INPUT ARGUMENTS ---------------------------------------------------------------------------------
+## INPUT ARGUMENTS --------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
 
-parser = argparse.ArgumentParser(description="DOMAIN ANALYZER\nThis program downloads sequences from various databases (e.g. KEGG or UniProt) via Genome.jp"
-    " The input is an id from e.g PFAM or Prosite which is used to first download all gene IDs from the desired databases and cycles through each gene ID"
-    " to download additional details. Subsequently, the data can be counted regarding e.g. taxonomy, domain architecture and sequence length")
-parser.add_argument("name", help="name of the domain")
-parser.add_argument("-m", "--multiprocess", help="turn on mutltiprocessing (only for Linux)", action="store_true")
-parser.add_argument("-ask", "--askoverwrite", help="ask before overwriting files", action="store_true")
-parser.add_argument("-db", "--dblist", help="list databases to be searched, separated by ',' (default: %(default)s)", default="UniProt;KEGG;PDB;swissprot")
-parser.add_argument("-a", "--action", help="add actions to be conducted: a=all, i=entry IDs, d=protein data, m=KEGG motif, e=extract (default: %(default)s)", default="a")
-parser.add_argument("-st", "--searchtype", help="type of the searched id (default: %(default)s)", default="pf")
-parser.add_argument("-c", "--cutoff", help="min E-Value of Pfam domains (default: %(default)s)", default=0.0001, type=float)
-parser.add_argument("-sam", "--samplesize", help="max number of downloaded entries (default: %(default)s)", default=0, type=int)
-parser.add_argument("-f", "--folder", help="name of the parent folder (default: same as 'name')")
-parser.add_argument("-cs", "--clustersize", help="entries/frament files (default: %(default)s)", default=100, type=int)
-parser.add_argument("-ft", "--filetype", help="type of the generated files (default: %(default)s)", default=".csv")
-parser.add_argument("-sep", "--separator", help="separator between columns in the output files (default: %(default)s)", default=";")
+parser = argparse.ArgumentParser(description="DOMAIN ANALYZER"
+	"\nThis program downloads sequences from databases (e.g. KEGG or UniProt) via Genome.jp"
+    "\nThe input is an id from e.g PFAM or Prosite"
+    "\nAll gene IDs associated to this ID from the desired databases are downloaded"
+    "\nIt then downloads relevant details for each gene ID, e.g. organism and domain architecture"
+    "\nThe data can be counted regarding e.g. taxonomy, domain architecture and sequence length")
+parser.add_argument("name", 
+	help="name of the domain")
+parser.add_argument("-m", "--multiprocess", 
+	help="turn on mutltiprocessing (only for Linux)",
+	action="store_true")
+parser.add_argument("-ask", "--askoverwrite", 
+	help="ask before overwriting files",
+	action="store_true")
+parser.add_argument("-db", "--dblist", 
+	help="list databases to be searched, separated by ',' (default: %(default)s)", 
+	default="UniProt;KEGG;PDB;swissprot")
+parser.add_argument("-a", "--action", 
+	help="add actions to be conducted: "
+	"a=all, i=entry IDs, d=protein data, m=KEGG motif, e=extract (default: %(default)s)", 
+	default="a")
+parser.add_argument("-st", "--searchtype", 
+	help="type of the searched id (default: %(default)s)", 
+	default="pf")
+parser.add_argument("-c", "--cutoff", 
+	help="min E-Value of Pfam domains (default: %(default)s)", 
+	default=0.0001, 
+	type=float)
+parser.add_argument("-sam", "--samplesize", 
+	help="max number of downloaded entries (default: %(default)s)", 
+	default=0, 
+	type=int)
+parser.add_argument("-f", "--folder", 
+	help="name of the parent folder (default: same as 'name')")
+parser.add_argument("-cs", "--clustersize", 
+	help="entries/frament files (default: %(default)s)", 
+	default=100, 
+	type=int)
+parser.add_argument("-ft", "--filetype", 
+	help="type of the generated files (default: %(default)s)", 
+	default=".csv")
+parser.add_argument("-sep", "--separator", 
+	help="separator between columns in the output files (default: %(default)s)", 
+	default=";")
 
 # Set folder name to searched ID if not set
 args = parser.parse_args()
@@ -84,7 +113,8 @@ def MultiProcessing(IDList, Function):
 ## ================================================================================================
 ## Download all gene IDs associated with the supplied domain name from KEGG, UniProt and PDB
 def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
-	print("\nNow downloading gene IDs containing domain", Name, ". . .\n(Speed depends on internet connection)\n")
+	print("\nNow downloading gene IDs containing domain", Name, 
+		". . .\n(Speed depends on internet connection)\n")
 
 	# Create the required url with the following fragments
 	urlGeneList = "https://www.genome.jp/dbget-bin/get_linkdb?-t+"
@@ -112,7 +142,8 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 			GeneTable = Genome.CleanPDB(List)
 		if len(GeneTable.index) != 0:
 			print("Data found for", len(GeneTable.index), "entries\n")
-			IE.ExportDataFrame(GeneTable, OutputFile, Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
+			IE.ExportDataFrame(GeneTable, OutputFile, 
+				Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
 	return(bool(List))
 
 ## ================================================================================================
@@ -134,7 +165,7 @@ def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterS
 		# Download all files that have not yet been saved
 		else:
 			if Multiprocess:
-				ListOfDicts = MultiProcessing(ClusteredList[ClusterID],  Genome.DownloadEntryUniProt)
+				ListOfDicts = MultiProcessing(ClusteredList[ClusterID], Genome.DownloadEntryUniProt)
 			else:
 				ListOfDicts = []
 				for ID in ClusteredList[ClusterID]:
@@ -163,7 +194,7 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 		FragmentFile = FilePath + "_" + str(ClusterID+1)
 		print(FragmentFile)
 
-		# Create chunks of clusters since the data of 10 proteins can be downloaded from KEGG at once
+		# Create chunks of clusters since data of 10 proteins can be downloaded from KEGG at once
 		ClusterChunk = [ClusteredList[ClusterID][x:x+10] for x in range(0, len(ClusteredList[ClusterID]), 10)]
 
 		# Ignore all files that have already been downloaded
@@ -218,7 +249,8 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 			ColNames= ["ID", "Index","Name", "Start", "End", "Definition", "E-Value", "Score"]
 			MotifTable = pd.DataFrame(ListOfLists, columns=ColNames)
 			IE.ExportDataFrame(MotifTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
-			print("Done!\n->", len(MotifTable), "domains for", len(ClusteredList[ClusterID]), "entries found")
+			print("Done!\n->", len(MotifTable), "domains for", 
+				len(ClusteredList[ClusterID]), "entries found")
 
 	# After all entries have been downloaded, combine all fragments into one dataframe
 	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
@@ -229,7 +261,8 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 	ConcatDataFrame = DataFrame.copy()	# Make a copy to avoid errors
 	ConcatDataFrame = ConcatDataFrame[ConcatDataFrame['E-Value'] < CutOff] 	# Remove all rows with E-Values below CutOff
 	ConcatDataFrame['Index'] = ConcatDataFrame.groupby(["ID"]).cumcount()+1	# Reset the domain counting for the remaining domains
-	ConcatDataFrame = ConcatDataFrame.pivot(index="ID", columns="Index", values=["Name", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)	# Move info for all domains for the same protein to one row
+	ConcatDataFrame = ConcatDataFrame.pivot(index="ID", columns="Index", 
+		values=["Name", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)	# Move info for all domains for the same protein to one row
 	ConcatDataFrame.columns = [f"D{y}-{x}" for x, y in ConcatDataFrame.columns]	# Give the new columns names starting with D[n]-
 	return(DataFrame, ConcatDataFrame)
 
@@ -251,7 +284,8 @@ for DB in args.dblist:
 		InputFile = os.path.join(args.folder, "Input", FileName + args.filetype)
 		if not os.path.exists(InputFile):
 			OutputFile = os.path.join(args.folder, "Input", args.name)
-			Hits = DownloadList(args.name, OutputFile, DB, args.searchtype, args.filetype, args.separator, args.askoverwrite)
+			Hits = DownloadList(args.name, OutputFile, DB, 
+				args.searchtype, args.filetype, args.separator, args.askoverwrite)
 		if os.path.exists(InputFile):
 			DataFrame = pd.read_csv(InputFile, sep=args.separator)
 			IDList = DataFrame["ID"].tolist()
@@ -267,20 +301,25 @@ for DB in args.dblist:
 		FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
 		FragmentFile = os.path.join(FragmentFolder, FileName + "_Protein")
 		if DB == "kegg":
-			Detailed = DownloadEntryKEGG(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+			Detailed = DownloadEntryKEGG(IDList, FragmentFile, args.filetype, 
+				args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
 		else:
-			Detailed = DownloadEntryUniProt(IDList, FragmentFile, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+			Detailed = DownloadEntryUniProt(IDList, FragmentFile, args.filetype, 
+				args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
 		DataFrame = pd.merge(DataFrame, Detailed, on=["ID"],  how="right")
-		IE.ExportDataFrame(DataFrame, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(DataFrame, OutputPath, 
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
 	# Download motif data from KEGG
 	if "m" in args.action and DB == "kegg":
 		OutputPath = os.path.join(args.folder, "Output", FileName + "_Motif")
 		FragmentFolder = IE.CreateFolder(OutputPath + "Fragments")
 		FragmentFile = os.path.join(FragmentFolder, FileName + "_Motif")
-		Motifs, ConcatMotifs = DownloadMotifKEGG(IDList, FragmentFile, args.cutoff, args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
-		IE.ExportDataFrame(Motifs, OutputPath, FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		if args.searchtype == "pf":	# Remove all entries that do not contain the enquired PFAM domain
+		Motifs, ConcatMotifs = DownloadMotifKEGG(IDList, FragmentFile, args.cutoff, 
+			args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
+		IE.ExportDataFrame(Motifs, OutputPath, 
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		if args.searchtype == "pf":	# Remove all entries that don't contain the target PFAM domain
 			DomainNameCols = [col for col in ConcatMotifs if col.endswith('-Name')]
 			ConcatMotifs = ConcatMotifs[(ConcatMotifs[DomainNameCols] == args.name).any(axis=1)]
 			ConcatMotifs.dropna(how='all', axis=1, inplace=True)
@@ -291,7 +330,8 @@ for DB in args.dblist:
 		except FileNotFoundError:
 			DataFrame = pd.merge(DataFrame, ConcatMotifs, on=["ID"],  how="right")
 			print("Motif data is stored without protein data since the protein file is missing")
-		IE.ExportDataFrame(DataFrame, OutputPath + "_cutoff" + str(args.cutoff), FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(DataFrame, OutputPath + "_cutoff" + str(args.cutoff), 
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
 	# Extract data from UniProt and/or KEGG
 	if "e" in args.action:
@@ -319,16 +359,20 @@ for DB in args.dblist:
 		Motifs = ProteinData[MotifCols].copy()
 		Motifs["Domains"] = Motifs[DomainNameCols].apply(lambda x: '+'.join(x.dropna()), axis=1)
 		Motifs = Motifs.drop(columns=DomainNameCols)
-		IE.ExportDataFrame(Motifs, FilePath + "_DomainArchitecture", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(Motifs, FilePath + "_DomainArchitecture", 
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 		
 		# Count the number of entries for each taxonomy, organism and domain architecture
 		ColName = "Entries"
 		CountDomains = Motifs.groupby(['Domains']).size().reset_index(name=ColName).sort_values([ColName], ascending=False)
 		CountTax = Motifs.groupby(['Taxonomy']).size().reset_index(name=ColName).sort_values([ColName], ascending=False)
 		CountOrganisms = Motifs.groupby(['Taxonomy','Organism']).size().reset_index(name=ColName).sort_values(['Taxonomy',ColName], ascending=False)
-		IE.ExportDataFrame(CountDomains, FilePath + "_CountDomains", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		IE.ExportDataFrame(CountTax, FilePath + "_CountTax", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		IE.ExportDataFrame(CountOrganisms, FilePath + "_CountOrganisms", FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(CountDomains, FilePath + "_CountDomains", 
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(CountTax, FilePath + "_CountTax", 
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		IE.ExportDataFrame(CountOrganisms, FilePath + "_CountOrganisms", 
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
 			# 	DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
 			# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
