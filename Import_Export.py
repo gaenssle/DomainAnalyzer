@@ -63,10 +63,27 @@ def CombineFiles(Folder, Sep, FileType):
 ##-------------------------------------------------------------------------------------------------
 ## ================================================================================================
 ## Export pandas dataframe
-def ExportDataFrame(DataFrame, FileName, Add="", Columns="", FileType=".csv", Sep=";", Ask=True, Header=True):
+def ExportDataFrame(DataFrame, FileName, Add="", Columns="", 
+	FileType=".csv", Sep=";", Ask=True, Header=True):
 	FileName = FileName + Add + FileType
 	FileName = CheckFileExists(FileName, Ask)
 	if Columns == "":
 		Columns = list(DataFrame)
 	DataFrame.to_csv(FileName, sep=Sep, columns = Columns, index=False, header=Header)
 	print("File saved as:", FileName, "\n")
+
+
+## ================================================================================================
+## Export Fasta of either the full sequence or only the domain
+def CreateFasta(df, FilePath, only=False):
+    df_fasta = df.copy()
+    df_fasta = df_fasta.reset_index()   
+    if only:
+        FilePath = FilePath + "_only"
+        df_fasta['ID'] = df_fasta['ID'] + '_' + df_fasta['Domain']
+    FilePath = FilePath  + ".fasta"
+
+    df_fasta["fasta"] = df_fasta.agg(lambda x: 
+    	f">{x['ID']} [{x['Organism']}] {x['Taxonomy']}\n{x['Sequence']}\n", axis=1)
+    with open(FilePath, "w") as f_out:
+        f_out.write("\n".join(df_fasta["fasta"]))

@@ -71,7 +71,7 @@ def DownloadOrganismsTemp(Name="organism"):
 	ColList = ["ID long", "orgID", "Organism", "Kingdom", "Phylum", "Class", "Order"]
 	DataFrame = pd.read_csv(StringIO(Entry), sep="\t", names=ColList)
 	DataFrame["Taxonomy"] = DataFrame["Kingdom"] + "-" + DataFrame["Phylum"]
-	DataFrame = DataFrame[['orgID','Taxonomy']]
+	DataFrame = DataFrame[["orgID","Taxonomy"]]
 	print(DataFrame.head())
 	return(DataFrame)
 
