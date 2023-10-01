@@ -73,16 +73,16 @@ def DownloadEntryUniProt(ID):
 						if "KEGG" in Line:
 							Dict["KEGG"] = Line.split(";")[1].strip()
 
-					# Each domain is stored in 3 columns: D[n]-Name, D[n]-Start, D[n]-End
+					# Each domain is stored in 3 columns: Name-D[n], Start-D[n], End-D[n]
 					elif Line.startswith("FT"):
 						if "DOMAIN" in Line:
 							InDomain = True
 							DomainID += 1
-							DID = "D" + str(DomainID) + "-"
+							DID = "-" + "D" + str(DomainID)
 							String = Line.rsplit(" ",1)[1]
-							Dict[DID + "Start"], Dict[DID + "End"] = String.split("..",1)
+							Dict["Start" + DID], Dict["End" + DID] = String.split("..",1)
 						elif InDomain and "/note=" in Line:
-							Dict[DID + "Name"] = Line.split("\"")[1]
+							Dict["Name" + DID] = Line.split("\"")[1]
 							InDomain = False
 
 					# The amino acid sequence is the last information on the page
@@ -119,19 +119,19 @@ def CleanKEGG(Data):
 		try:
 			Dict["ID"], String = Line.strip().split(" ",1)
 			if "no KO assigned" in String:
-				Dict["Name"] = String.split("|")[1].split(") ")[1]
+				Dict["Description"] = String.split("|")[1].split(") ")[1]
 			else:
 				if "|" in String:
 					String = String.split("|")[0]
 				if "[EC" in String:
 					String, Dict["#EC"] = String.rsplit(" [EC:")
 					Dict["#EC"] = Dict["#EC"].replace("]", "").strip()
-				Dict["KO ID"], Dict["Name"] = String.strip().split(" ", 1)
+				Dict["KO ID"], Dict["Description"] = String.strip().split(" ", 1)
 		except ValueError:
 			pass
 		ListOfDicts.append(Dict)
 		DataFrame = pd.DataFrame(ListOfDicts)
-		DataFrame = DataFrame[["ID", "KO ID", "#EC", "Name"]]
+		DataFrame = DataFrame[["ID", "KO ID", "#EC", "Description"]]
 	return(DataFrame)
 
 ## ================================================================================================
@@ -143,7 +143,7 @@ def CleanUniProt(Data):
 		try:
 			Dict["ID"], String = Line.split(" ",1)
 			String = String.strip().split("Full=",1)[1]
-			Dict["Name"], IDString = String.split(" {",1)
+			Dict["Description"], IDString = String.split(" {",1)
 			IDList = IDString.split(",",1)[0].split("}",1)[0].split("|")
 			for ID in IDList:
 				if len(ID) > 10:
@@ -162,8 +162,7 @@ def CleanPDB(Data):
 	for Line in Data:
 		Dict = {}
 		try:
-			Dict["ID"], Dict["Name"] = Line.split(" ",1)
-			Dict["Name"] = Dict["Name"].strip()
+			Dict["ID"], Dict["Description"] = Line.strip().split(" ",1)
 		except ValueError:
 			pass
 		ListOfDicts.append(Dict)

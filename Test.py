@@ -263,9 +263,22 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 	ConcatDataFrame['Index'] = ConcatDataFrame.groupby(["ID"]).cumcount()+1	# Reset the domain counting for the remaining domains
 	ConcatDataFrame = ConcatDataFrame.pivot(index="ID", columns="Index", 
 		values=["Name", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)	# Move info for all domains for the same protein to one row
-	ConcatDataFrame.columns = [f"D{y}-{x}" for x, y in ConcatDataFrame.columns]	# Give the new columns names starting with D[n]-
+	ConcatDataFrame.columns = [f"{x}-D{y}" for x, y in ConcatDataFrame.columns]	# Give the new columns names starting with D[n]-
 	return(DataFrame, ConcatDataFrame)
 
+## ================================================================================================
+## Export Fasta of either the full sequence or only the domain
+def CreateFasta(df, FilePath, only=False):
+    df_fasta = df.copy()
+    df_fasta = df_fasta.reset_index()   
+    if only:
+        FilePath = FilePath + "_only"
+        df_fasta['ID'] = df_fasta['ID'] + '_' + df_fasta['Domain']
+    FilePath = FilePath  + ".fasta"
+
+    df_fasta["fasta"] = df_fasta.agg(lambda x: f">{x['ID']} [{x['Organism']}] {x['Taxonomy']}\n{x['Sequence']}\n", axis=1)
+    with open(FilePath, "w") as f_out:
+        f_out.write("\n".join(df_fasta["fasta"]))
 
 ## ------------------------------------------------------------------------------------------------
 ## SCRIPT -----------------------------------------------------------------------------------------
@@ -342,18 +355,15 @@ for DB in args.dblist:
 			InputFile = FilePath + "_Protein" + args.filetype
 		ProteinData = pd.read_csv(InputFile, sep=args.separator)
 		ProteinData.dropna(axis=1, how='all', inplace=True)
-		DomainNameCols = [col for col in ProteinData if col.endswith('-Name')]
+		DomainNameCols = [col for col in ProteinData if col.startswith('Name-')]
 
 		# And remove all entries that did not have an explicit domain with the entered name
 		if args.searchtype == "pf":
 			ProteinData = ProteinData[(ProteinData[DomainNameCols] == args.name).any(axis=1)]
 		ProteinData = ProteinData.dropna(axis=1,how='all')
-		DomainNameCols = [col for col in ProteinData if col.endswith('-Name')]
-		DomainAllCols = [col for col in ProteinData if  re.search(r'^D\d+-', col)]
+		DomainNameCols = [col for col in ProteinData if col.startswith('Name-')]
+		DomainAllCols = [col for col in ProteinData if  re.search(r'D\d+-$', col)]
 		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
-
-
-		Domains = ProteinData.copy()
 
 		# Create a file with the domain architecture (domains are joined by '+')
 		Motifs = ProteinData[MotifCols].copy()
@@ -374,5 +384,24 @@ for DB in args.dblist:
 		IE.ExportDataFrame(CountOrganisms, FilePath + "_CountOrganisms", 
 			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
-			# 	DetailsOnly = Extract.ExtractDetails(GeneTable, Header, Name, OffsetUniProt, OutputFile, Ask=Ask)
-			# 	Extract.CreateFasta(DetailsOnly, OutputFile, Ask=Ask)
+
+		# Create Fasta of complete sequence
+		CreateFasta(ProteinData, FilePath)
+
+		if args.searchtype == "pf":
+			Domains = ProteinData.copy()
+			# Pivot dataframe to 1 domain/row and keep only target domains
+			DomainNameCols = ["Name", "Start", "End", "E-Value"]
+			Domains = pd.wide_to_long(Domains, stubnames=DomainNameCols, i=['ID'], j='Domain', sep='-', suffix=r'[\w\d]+')
+			Domains = Domains.reset_index() 
+			Domains.dropna(subset = ['Name'], inplace=True)
+			Domains = Domains[Domains['Name'] == args.name]
+
+			# Extract the sequence for each domain
+			Domains[["Start", "End"]] = Domains[["Start", "End"]].astype(int)
+			Domains['Sequence'] = Domains.apply(lambda x: x['Sequence'][x['Start']:x['End']+1], axis=1)
+			
+			# Export details for each domain and fasta sequence
+			CreateFasta(Domains, FilePath, only=True)
+			IE.ExportDataFrame(Domains, FilePath + "_Domain_Details", 
+				FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
