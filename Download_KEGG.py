@@ -72,7 +72,6 @@ def DownloadOrganismsTemp(Name="organism"):
 	DataFrame = pd.read_csv(StringIO(Entry), sep="\t", names=ColList)
 	DataFrame["Taxonomy"] = DataFrame["Kingdom"] + "-" + DataFrame["Phylum"]
 	DataFrame = DataFrame[["orgID","Taxonomy"]]
-	print(DataFrame.head())
 	return(DataFrame)
 
 ## ================================================================================================
