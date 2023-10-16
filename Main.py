@@ -32,7 +32,7 @@ parser.add_argument("-ask", "--askoverwrite",
 	help="ask before overwriting files",
 	action="store_true")
 parser.add_argument("-db", "--dblist", 
-	help="list databases to be searched, separated by ',' (default: %(default)s)", 
+	help="list databases to be searched, separated by ';' (default: %(default)s)", 
 	default="UniProt;KEGG;PDB;swissprot")
 parser.add_argument("-a", "--action", 
 	help="add actions to be conducted: "
@@ -62,8 +62,9 @@ parser.add_argument("-sep", "--separator",
 	help="separator between columns in the output files (default: %(default)s)", 
 	default=";")
 
-# Set folder name to searched ID if not set
 args = parser.parse_args()
+
+# Set folder name to searched ID if not set
 if args.folder == None:
     args.folder = args.name
 
@@ -88,6 +89,10 @@ while True:
 
 # Supported databases have been implemented and can be downloaded
 SupportedDBs = ["uniprot", "swissprot", "kegg"]
+
+# Check for tab separator
+if args.separator in ["\\t", "tab", "'\\t'", "{tab}"]:
+	args.separator = "\t"
 
 ## ------------------------------------------------------------------------------------------------
 ## HELPFER FUNCTIONS ------------------------------------------------------------------------------
