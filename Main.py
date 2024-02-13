@@ -109,6 +109,39 @@ def MultiProcessing(IDList, Function):
 		pool.join()
 	return(Import)
 
+## ================================================================================================
+## Find alternative name for PFAM domain if no hits are found in the downloaded list
+def FindAlternativeName(ProteinData, GivenName):
+	print("\n\nWARNING\nThe domain name has not been found! Please choose an alternative name")
+
+	TempData = ProteinData.copy()
+
+	# Pivot dataframe to 1 domain/row to get all domain names
+	TempData = pd.wide_to_long(TempData, stubnames=["Name"], 
+		i=["ID"], j="Domain", sep="-", suffix=r"[\w\d]+")
+	TempData.dropna(subset = ["Name"], inplace=True)
+
+	# Count all obtained domain names
+	TempData = TempData.groupby(["Name"]).size() \
+		.sort_values(ascending=False) \
+		.reset_index(name="Entries")
+
+	# Print and request index of alternative domain name
+	print(TempData)
+	Answer = input("\nFound domain names in the obtained data."
+		"\nPlease enter the index of the correct alternative name (left number, 0 to " + str(len(TempData)-1) +
+		"\nTo quit, write 'quit'\n")
+	while True:
+		if Answer == "quit":
+			quit()
+		elif Answer.isdigit() and int(Answer) in range(len(TempData)):
+			AlternativeName = TempData["Name"][int(Answer)]
+			print("Selected alternative name is:", AlternativeName, "\n\n")
+			break
+		else:
+			Answer = input("\nPlease enter either 'quit' or an index between 0 and " + str(len(TempData)-1) + "\n")
+	return(AlternativeName)
+
 
 ## ------------------------------------------------------------------------------------------------
 ## MAIN FUNCTIONS ---------------------------------------------------------------------------------
@@ -353,8 +386,13 @@ for DB in args.dblist:
 		DomainNameCols = [col for col in ProteinData if col.startswith("Name-")]
 
 		# Remove all entries that did not have an explicit domain with the entered name
+		AlternativeName = ""
 		if args.searchtype == "pf":
-			ProteinData = ProteinData[(ProteinData[DomainNameCols] == args.name).any(axis=1)]
+			if args.name in ProteinData[DomainNameCols].values:
+				ProteinData = ProteinData[(ProteinData[DomainNameCols] == args.name).any(axis=1)]
+			else:
+				AlternativeName = FindAlternativeName(ProteinData, args.name)
+				ProteinData = ProteinData[(ProteinData[DomainNameCols] == AlternativeName).any(axis=1)]
 		ProteinData = ProteinData.dropna(axis=1,how="all")
 		DomainNameCols = [col for col in ProteinData if col.startswith("Name-")]
 		DomainAllCols = [col for col in ProteinData if  re.search(r"D\d+-$", col)]
@@ -371,7 +409,10 @@ for DB in args.dblist:
 				i=["ID"], j="Domain", sep="-", suffix=r"[\w\d]+")
 			Domains = Domains.reset_index() 
 			Domains.dropna(subset = ["Name"], inplace=True)
-			Domains = Domains[Domains["Name"] == args.name]
+			if AlternativeName == "":
+				Domains = Domains[Domains["Name"] == args.name]
+			else:
+				Domains = Domains[Domains["Name"] == AlternativeName]
 
 			# Extract the sequence for each domain and export as fasta and details
 			Domains[["Start", "End"]] = Domains[["Start", "End"]].astype(int)
