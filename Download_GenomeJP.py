@@ -131,7 +131,6 @@ def CleanKEGG(Data):
 			pass
 		ListOfDicts.append(Dict)
 		DataFrame = pd.DataFrame(ListOfDicts)
-		DataFrame = DataFrame[["ID", "KO ID", "#EC", "Description"]]
 	return(DataFrame)
 
 ## ================================================================================================

@@ -68,7 +68,7 @@ def DownloadOrganismsTemp(Name="organism"):
 	print("Download organism taxonomy. . .")
 	Entry = REST.kegg_list(Name).read()
 	Entry = Entry.replace(";" , "\t")
-	ColList = ["ID long", "orgID", "Organism", "Kingdom", "Phylum", "Class", "Order"]
+	ColList = ["ID long", "orgID", "Organism", "Domain", "Kingdom", "Phylum", "Class"]
 	DataFrame = pd.read_csv(StringIO(Entry), sep="\t", names=ColList)
 	DataFrame["Taxonomy"] = DataFrame["Kingdom"] + "-" + DataFrame["Phylum"]
 	DataFrame = DataFrame[["orgID","Taxonomy"]]
