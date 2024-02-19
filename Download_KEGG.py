@@ -108,3 +108,18 @@ def DownloadMotif(ID):
 				inDomains = True
 	print(ID, "downloaded")
 	return(Domains)
+
+## ================================================================================================
+## Find and merge overlapping domains (staring & ending within the MergeDistance from each other)
+def MergeOverlapping(ConcatDataFrame, MergeDistance):
+	ConcatDataFrame['End_diff'] = ConcatDataFrame.groupby(['ID'])['End'].diff().fillna(100)
+	ConcatDataFrame['Start_diff'] = ConcatDataFrame.groupby(['ID'])['Start'].diff().fillna(100)
+	for i in range(0, len(ConcatDataFrame)-1):
+		if (ConcatDataFrame['Start_diff'].values[i + 1] <= MergeDistance or 
+			ConcatDataFrame['End_diff'].values[i + 1] <= MergeDistance):
+			ConcatDataFrame['Name'].values[i] =  ConcatDataFrame['Name'].values[i] + "|" + ConcatDataFrame['Name'].values[i + 1]
+	ConcatDataFrame.drop(ConcatDataFrame[ConcatDataFrame['Start_diff'] <= MergeDistance].index, inplace=True)
+	ConcatDataFrame.drop(ConcatDataFrame[ConcatDataFrame['End_diff'] <= MergeDistance].index, inplace=True)
+	ConcatDataFrame["Index"] = ConcatDataFrame.groupby(["ID"]).cumcount()+1
+	ConcatDataFrame = ConcatDataFrame.drop(['Start_diff', 'End_diff'], axis=1)
+	return(ConcatDataFrame)

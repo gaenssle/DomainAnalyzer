@@ -94,6 +94,11 @@ SupportedDBs = ["uniprot", "swissprot", "kegg"]
 if args.separator in ["\\t", "tab", "'\\t'", "{tab}"]:
 	args.separator = "\t"
 
+# Set distance (amino acids) below which the domains are merged
+# (They are then shown as one domain, separated by '|')
+MergeDistance = 10
+
+
 ## ------------------------------------------------------------------------------------------------
 ## HELPFER FUNCTIONS ------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
@@ -108,6 +113,7 @@ def MultiProcessing(IDList, Function):
 		pool.close()
 		pool.join()
 	return(Import)
+
 
 ## ================================================================================================
 ## Find alternative name for PFAM domain if no hits are found in the downloaded list
@@ -182,6 +188,7 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 				Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
 	return(bool(List))
 
+
 ## ================================================================================================
 ## Download details for all given IDs from UniProt, including taxonomy, sequence and names
 def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
@@ -216,6 +223,7 @@ def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterS
 	# After all entries have been downloaded, combine all fragments into one dataframe
 	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
 	return(DataFrame)
+
 
 ## ================================================================================================
 ## Download details for all given IDs from KEGG, including taxonomy and sequence
@@ -259,6 +267,7 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
 	return(DataFrame)
 
+
 ## ================================================================================================
 ## Download all domain motifs for all given IDs from KEGG
 def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, ClusterSize, Ask):
@@ -297,10 +306,55 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 	ConcatDataFrame = DataFrame.copy()	# Make a copy to avoid errors
 	ConcatDataFrame = ConcatDataFrame[ConcatDataFrame["E-Value"] < CutOff] 	# Remove all rows with E-Values below CutOff
 	ConcatDataFrame["Index"] = ConcatDataFrame.groupby(["ID"]).cumcount()+1	# Reset the domain counting for the remaining domains
+
+	# Find and merge overlapping domains (starting/ending within the MergeDistance from each other)
+	ConcatDataFrame = KEGG.MergeOverlapping(ConcatDataFrame, MergeDistance)
+
+	# Move info for all domains for the same protein to one row (pivot dataframe and rename domain columns)
 	ConcatDataFrame = ConcatDataFrame.pivot(index="ID", columns="Index", 
-		values=["Name", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)	# Move info for all domains for the same protein to one row
+		values=["Name", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)
 	ConcatDataFrame.columns = [f"{x}-D{y}" for x, y in ConcatDataFrame.columns]	# Give the new columns names starting with D[n]-
 	return(DataFrame, ConcatDataFrame)
+
+
+## ================================================================================================
+## Remove all entries missing the target domain, including overlapping domains
+def FilterDomains(ProteinData, DomainNameCols, DomainName):
+	AlternativeName = ""
+	Hit = False
+
+	# Get input or alternative name and remove all entries that miss the domain
+	for Column in DomainNameCols:
+		if ProteinData[Column].str.contains(DomainName).any():
+			Hit = True
+	if Hit == True:
+		SearchPhrase = DomainName
+	else:
+		AlternativeName = FindAlternativeName(ProteinData, DomainName)
+		SearchPhrase = AlternativeName
+	ProteinData["Hit"] = ProteinData[DomainNameCols].apply(lambda x: 
+		x.str.contains(SearchPhrase,case=False)).any(axis=1).astype(int)
+	ProteinData = ProteinData[ProteinData["Hit"] != 0]
+	ProteinData = ProteinData.dropna(axis=1,how="all")
+
+	# Create a dataframe that only contains the target domains (pivot to 1 domain/row)
+	Domains = ProteinData.copy()
+	DomainCols = ["Name", "Start", "End", "E-Value"]
+	Domains = pd.wide_to_long(Domains, stubnames=DomainCols, 
+		i=["ID"], j="Domain", sep="-", suffix=r"[\w\d]+")
+	Domains = Domains.reset_index() 
+	Domains.dropna(subset = ["Name"], inplace=True)
+	if AlternativeName == "":
+		Domains = Domains[Domains["Name"].str.contains(DomainName)]
+	else:
+		Domains = Domains[Domains["Name"].str.contains(AlternativeName)]
+
+	# Extract the amino acid sequence for each domain
+	Domains[["Start", "End"]] = Domains[["Start", "End"]].astype(int)
+	Domains["Sequence"] = Domains.apply(lambda x: 
+		x["Sequence"][x["Start"]:x["End"]+1], axis=1)
+
+	return(ProteinData, Domains)
 
 
 ## ------------------------------------------------------------------------------------------------
@@ -357,9 +411,13 @@ for DB in args.dblist:
 			args.filetype, args.separator, args.multiprocess, args.clustersize, args.askoverwrite)
 		IE.ExportDataFrame(Motifs, OutputPath, 
 			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
-		if args.searchtype == "pf":	# Remove all entries that don't contain the target PFAM domain
+
+		# Remove all entries that don't contain the target PFAM domain
+		if args.searchtype == "pf":	
 			DomainNameCols = [col for col in ConcatMotifs if col.startswith("Name-")]
-			ConcatMotifs = ConcatMotifs[(ConcatMotifs[DomainNameCols] == args.name).any(axis=1)]
+			ConcatMotifs["Hit"] = ConcatMotifs[DomainNameCols].apply(lambda x: 
+				x.str.contains(args.name,case=False)).any(axis=1).astype(int)
+			ConcatMotifs = ConcatMotifs[ConcatMotifs["Hit"] != 0]
 			ConcatMotifs.dropna(how="all", axis=1, inplace=True)
 		try:
 			ProteinFile = os.path.join(args.folder, "Output", FileName + "_Protein" + args.filetype)
@@ -381,48 +439,25 @@ for DB in args.dblist:
 			InputFile = FilePath + "_Protein_cutoff" + str(args.cutoff) + args.filetype
 		else:
 			InputFile = FilePath + "_Protein" + args.filetype
-		ProteinData = pd.read_csv(InputFile, sep=args.separator)
-		ProteinData.dropna(axis=1, how="all", inplace=True)
-		DomainNameCols = [col for col in ProteinData if col.startswith("Name-")]
+		try:
+			ProteinData = pd.read_csv(InputFile, sep=args.separator)
+			ProteinData.dropna(axis=1, how="all", inplace=True)
+			DomainNameCols = [col for col in ProteinData if col.startswith("Name-")]
+		except FileNotFoundError:
+			print(f"No input file found for database: {DB}\n\n")
 
-		# Remove all entries that did not have an explicit domain with the entered name
-		AlternativeName = ""
+		# Remove all entries missing the target domain, including overlapping domains
 		if args.searchtype == "pf":
-			if args.name in ProteinData[DomainNameCols].values:
-				ProteinData = ProteinData[(ProteinData[DomainNameCols] == args.name).any(axis=1)]
-			else:
-				AlternativeName = FindAlternativeName(ProteinData, args.name)
-				ProteinData = ProteinData[(ProteinData[DomainNameCols] == AlternativeName).any(axis=1)]
-		ProteinData = ProteinData.dropna(axis=1,how="all")
-		DomainNameCols = [col for col in ProteinData if col.startswith("Name-")]
-		DomainAllCols = [col for col in ProteinData if  re.search(r"D\d+-$", col)]
-		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
-
-		# Create Fasta of complete sequence
-		IE.CreateFasta(ProteinData, FilePath)
-
-		if args.searchtype == "pf":
-			Domains = ProteinData.copy()
-			# Pivot dataframe to 1 domain/row and keep only target domains
-			DomainCols = ["Name", "Start", "End", "E-Value"]
-			Domains = pd.wide_to_long(Domains, stubnames=DomainCols, 
-				i=["ID"], j="Domain", sep="-", suffix=r"[\w\d]+")
-			Domains = Domains.reset_index() 
-			Domains.dropna(subset = ["Name"], inplace=True)
-			if AlternativeName == "":
-				Domains = Domains[Domains["Name"] == args.name]
-			else:
-				Domains = Domains[Domains["Name"] == AlternativeName]
-
-			# Extract the sequence for each domain and export as fasta and details
-			Domains[["Start", "End"]] = Domains[["Start", "End"]].astype(int)
-			Domains["Sequence"] = Domains.apply(lambda x: 
-				x["Sequence"][x["Start"]:x["End"]+1], axis=1)
+			ProteinData, Domains = FilterDomains(ProteinData, DomainNameCols, args.name)
 			IE.CreateFasta(Domains, FilePath, only=True)
 			IE.ExportDataFrame(Domains, FilePath + "_Domain_Details", 
 				FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
+		# Create Fasta files of complete sequences
+		IE.CreateFasta(ProteinData, FilePath)
+
 		# Create a file with the domain architecture (domains are joined by '+')
+		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
 		Motifs = ProteinData[MotifCols].copy()
 		Motifs["Domains"] = Motifs[DomainNameCols].apply(lambda x: "+".join(x.dropna()), axis=1)
 		Motifs = Motifs.drop(columns=DomainNameCols)
