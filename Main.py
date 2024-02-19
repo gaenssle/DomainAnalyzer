@@ -106,7 +106,7 @@ MergeDistance = 10
 ## Speedup download by using multiprcessing, WARNING: Has to be installed first!
 def MultiProcessing(IDList, Function):
 	Import = []
-	print("Download data for", len(IDList), "Items. . .")
+	print(f"Download data for {len(IDList)} Items. . .")
 	if __name__ == "__main__":
 		with Pool(10) as pool:
 			Import = pool.map(Function, IDList)
@@ -142,7 +142,7 @@ def FindAlternativeName(ProteinData, GivenName):
 			quit()
 		elif Answer.isdigit() and int(Answer) in range(len(TempData)):
 			AlternativeName = TempData["Name"][int(Answer)]
-			print("Selected alternative name is:", AlternativeName, "\n\n")
+			print(f"Selected alternative name is: {AlternativeName}\n\n")
 			break
 		else:
 			Answer = input("\nPlease enter either 'quit' or an index between 0 and " + str(len(TempData)-1) + "\n")
@@ -183,7 +183,7 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 		else:
 			GeneTable = Genome.CleanPDB(List)
 		if len(GeneTable.index) != 0:
-			print("Data found for", len(GeneTable.index), "entries\n")
+			print(f"Data found for {len(GeneTable.index)} entries\n")
 			IE.ExportDataFrame(GeneTable, OutputFile, 
 				Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
 	return(bool(List))
@@ -192,12 +192,12 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 ## ================================================================================================
 ## Download details for all given IDs from UniProt, including taxonomy, sequence and names
 def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
-	print("Download protein data for", len(IDList), ". . .")
+	print(f"Download protein data for {len(IDList)} . . .")
 
 	# Create clusters of sequences to generate smaller files (in case the download crashes)
 	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
 	for ClusterID in range(len(ClusteredList)):
-		print("Download cluster", ClusterID+1, "of", len(ClusteredList))
+		print(f"Download cluster {ClusterID+1} of {len(ClusteredList)}")
 		FragmentFile = FilePath + "_" + str(ClusterID+1)
 		print(FragmentFile)
 
@@ -217,7 +217,7 @@ def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterS
 
 			# Convert to pandas dataframe and store each fragment in the fragment folder
 			ProteinTable = pd.DataFrame(ListOfDicts)
-			print("Done!\n->", len(ProteinTable), "of", len(ClusteredList[ClusterID]), "found")
+			print(f"Done!\n-> {len(ProteinTable)} of {len(ClusteredList[ClusterID])} found")
 			IE.ExportDataFrame(ProteinTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
 
 	# After all entries have been downloaded, combine all fragments into one dataframe
@@ -229,12 +229,12 @@ def DownloadEntryUniProt(IDList, FilePath, FileType, Sep, Multiprocess, ClusterS
 ## Download details for all given IDs from KEGG, including taxonomy and sequence
 def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize, Ask):
 	Organisms = None
-	print("Download protein data for", len(IDList), ". . .")
+	print(f"Download protein data for {len(IDList)} . . .")
 
 	# Create clusters of sequences to generate smaller files (in case the download crashes)
 	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
 	for ClusterID in range(len(ClusteredList)):
-		print("Download cluster", ClusterID+1, "of", len(ClusteredList))
+		print(f"Download cluster {ClusterID+1} of {len(ClusteredList)}")
 		FragmentFile = FilePath + "_" + str(ClusterID+1)
 		print(FragmentFile)
 
@@ -261,7 +261,7 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 			ProteinTable = pd.DataFrame(ListOfDicts)
 			ProteinTable = pd.merge(ProteinTable, Organisms, on=["orgID"],  how="left")
 			IE.ExportDataFrame(ProteinTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
-			print("Done!\n->", len(ProteinTable), "of", len(ClusteredList[ClusterID]), "found")
+			print(f"Done!\n-> {len(ProteinTable)} of {len(ClusteredList[ClusterID])} found")
 
 	# After all entries have been downloaded, combine all fragments into one dataframe
 	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
@@ -271,12 +271,12 @@ def DownloadEntryKEGG(IDList, FilePath, FileType, Sep, Multiprocess, ClusterSize
 ## ================================================================================================
 ## Download all domain motifs for all given IDs from KEGG
 def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, ClusterSize, Ask):
-	print("Download motif for", len(IDList), ". . .")
+	print(f"Download motif for {len(IDList)} . . .")
 
 	# Create clusters of sequences to generate smaller files (in case the download crashes)
 	ClusteredList = [IDList[x:x+ClusterSize] for x in range(0, len(IDList), ClusterSize)]
 	for ClusterID in range(len(ClusteredList)):
-		print("Download cluster", ClusterID+1, "of", len(ClusteredList))
+		print(f"Download cluster {ClusterID+1} of {len(ClusteredList)}")
 		FragmentFile = FilePath + "_" + str(ClusterID+1)
 		print(FragmentFile)
 
@@ -294,8 +294,7 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 			ColNames= ["ID", "Index","Name", "Start", "End", "Definition", "E-Value", "Score"]
 			MotifTable = pd.DataFrame(ListOfLists, columns=ColNames)
 			IE.ExportDataFrame(MotifTable, FragmentFile, FileType=FileType, Sep=Sep, Ask=Ask)
-			print("Done!\n->", len(MotifTable), "domains for", 
-				len(ClusteredList[ClusterID]), "entries found")
+			print(f"Done!\n-> {len(MotifTable)} domains for {len(ClusteredList[ClusterID])} entries found")
 
 	# After all entries have been downloaded, combine all fragments into one dataframe
 	DataFrame = IE.CombineFiles(os.path.split(FragmentFile)[0], Sep, FileType)
