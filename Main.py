@@ -362,6 +362,12 @@ def FilterDomains(ProteinData, DomainNameCols, DomainName):
 ## ------------------------------------------------------------------------------------------------
 ## SCRIPT -----------------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------
+# Print program header
+print('\n{:=<70}'.format(''))
+print('{:=^70}'.format('  DOMAIN ANALYZER  '))
+print('{:=<70}'.format(''))
+print('{: ^70}\n\n'.format('2024, by A.L.O. Gaenssle'))
+
 
 IE.CreateFolder(os.path.join(args.folder, "Input"))
 IE.CreateFolder(os.path.join(args.folder, "Output"))
@@ -488,3 +494,4 @@ for DB in args.dblist:
 		IE.ExportDataFrame(CountOrganisms, FilePath + "_CountOrganisms", 
 			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
+print('{:=^70}'.format('  End of program  '))
