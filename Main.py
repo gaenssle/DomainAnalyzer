@@ -155,8 +155,8 @@ def FindAlternativeName(ProteinData, GivenName):
 ## ================================================================================================
 ## Download all gene IDs associated with the supplied domain name from KEGG, UniProt and PDB
 def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
-	print("\nNow downloading gene IDs containing domain", Name, 
-		". . .\n(Speed depends on internet connection)\n")
+	print(f"Download gene IDs containing domain {Name} . . .", 
+		"\n(Speed depends on internet connection)\n")
 
 	# Create the required url with the following fragments
 	urlGeneList = "https://www.genome.jp/dbget-bin/get_linkdb?-t+"
@@ -186,6 +186,9 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 			print(f"Data found for {len(GeneTable.index)} entries\n")
 			IE.ExportDataFrame(GeneTable, OutputFile, 
 				Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
+			if DB == "genes":
+				IE.ExportDataFrame(GeneTable, OutputFile, 
+					Add=AddToName + "_GeneIDs", Columns= ["ID"], FileType=FileType, Sep=Sep, Ask=Ask, Header=False)
 	return(bool(IDList))
 
 
@@ -372,10 +375,12 @@ for DB in args.dblist:
 	if any(s in ["i", "d", "m"] for s in args.action):
 		InputFile = os.path.join(args.folder, "Input", FileName + args.filetype)
 		if not os.path.exists(InputFile):
+			print(f"\nNo input file found for {DB.upper()}")
 			OutputFile = os.path.join(args.folder, "Input", args.name)
 			Hits = DownloadList(args.name, OutputFile, DB, 
 				args.searchtype, args.filetype, args.separator, args.askoverwrite)
 		if os.path.exists(InputFile):
+			print(f"\nInput file for {DB.upper()} already exists, loading file . . .\n({InputFile})")
 			DataFrame = pd.read_csv(InputFile, sep=args.separator)
 			IDList = DataFrame["ID"].tolist()
 			Hits = bool(IDList)
