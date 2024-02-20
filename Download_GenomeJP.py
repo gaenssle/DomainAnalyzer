@@ -137,17 +137,21 @@ def CleanKEGG(Data):
 ## Convert downloaded UniProt/SWISS-Prot gene text to table
 def CleanUniProt(Data):
 	ListOfDicts = []
+	IDList = []
 	for Line in Data:
 		Dict = {}
 		try:
 			Dict["ID"], String = Line.split(" ",1)
 			String = String.strip().split("Full=",1)[1]
-			Dict["Description"], IDString = String.split(" {",1)
-			IDList = IDString.split(",",1)[0].split("}",1)[0].split("|")
-			for ID in IDList:
-				if len(ID) > 10:
-					Type, ID = ID.strip().split(":",1)
-					Dict[Type] = ID
+			try:
+				Dict["Description"], IDString = String.split(" {",1)
+				IDList = IDString.split(",",1)[0].split("}",1)[0].split("|")
+				for ID in IDList:
+					if len(ID) > 10:
+						Type, ID = ID.strip().split(":",1)
+						Dict[Type] = ID
+			except ValueError:
+				Dict["Description"] = String.split("; ",1)[0]				
 			ListOfDicts.append(Dict)
 		except ValueError:
 			pass
