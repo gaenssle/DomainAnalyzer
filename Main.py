@@ -169,24 +169,24 @@ def DownloadList(Name, OutputFile, DB, SearchType, FileType, Sep, Ask):
 	urlInitial = urlGeneList + DB + urlName + Name
 
 	# Download all genes from the first page and then cycle through all subsequent pages
-	List, Pages = Genome.DownloadGeneList(urlInitial, getAmount=True)
+	IDList, Pages = Genome.DownloadGeneList(urlInitial, getAmount=True)
 	for Page in range(2, Pages+1):
 		urlNew = urlGeneList + DB + urlPage + str(Page) + urlName + Name
-		List.extend(Genome.DownloadGeneList(urlNew))
+		IDList.extend(Genome.DownloadGeneList(urlNew))
 
 	# Extract all information from the entries and convert into pandas dataframe
-	if List:
+	if IDList:
 		if DB == "uniprot" or DB == "swissprot":
-			GeneTable = Genome.CleanUniProt(List)
+			GeneTable = Genome.CleanUniProt(IDList)
 		elif DB == "genes":
-			GeneTable = Genome.CleanKEGG(List)
+			GeneTable = Genome.CleanKEGG(IDList)
 		else:
-			GeneTable = Genome.CleanPDB(List)
+			GeneTable = Genome.CleanPDB(IDList)
 		if len(GeneTable.index) != 0:
 			print(f"Data found for {len(GeneTable.index)} entries\n")
 			IE.ExportDataFrame(GeneTable, OutputFile, 
 				Add=AddToName, FileType=FileType, Sep=Sep, Ask=Ask)
-	return(bool(List))
+	return(bool(IDList))
 
 
 ## ================================================================================================
@@ -425,6 +425,7 @@ for DB in args.dblist:
 		except FileNotFoundError:
 			DataFrame = pd.merge(DataFrame, ConcatMotifs, on=["ID"],  how="right")
 			print("Motif data is stored without protein data since the protein file is missing")
+			continue
 		CutoffFilePath = os.path.join(args.folder, "Output", 
 			FileName + "_Protein_cutoff" + str(args.cutoff))
 		IE.ExportDataFrame(DataFrame, CutoffFilePath, 
@@ -444,6 +445,7 @@ for DB in args.dblist:
 			DomainNameCols = [col for col in ProteinData if col.startswith("Name-")]
 		except FileNotFoundError:
 			print(f"No input file found for database: {DB}\n\n")
+			continue
 
 		# Remove all entries missing the target domain, including overlapping domains
 		if args.searchtype == "pf":
