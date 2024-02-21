@@ -469,6 +469,7 @@ for DB in args.dblist:
 		IE.CreateFasta(ProteinData, FilePath)
 
 		# Create a file with the domain architecture (domains are joined by '+')
+		DomainNameCols = [col for col in ProteinData if col.startswith("Name-")]
 		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
 		Motifs = ProteinData[MotifCols].copy()
 		Motifs["Domains"] = Motifs[DomainNameCols].apply(lambda x: "+".join(x.dropna()), axis=1)
