@@ -337,14 +337,15 @@ def FilterDomains(ProteinData, DomainNameCols, DomainName):
 	ProteinData["Hit"] = ProteinData[DomainNameCols].apply(lambda x: 
 		x.str.contains(SearchPhrase,case=False)).any(axis=1).astype(int)
 	ProteinData = ProteinData[ProteinData["Hit"] != 0]
-	ProteinData = ProteinData.dropna(axis=1,how="all")
+	ProteinData.dropna(axis=1, how="all", inplace=True)
+	ProteinData.drop(["Hit"], axis=1, inplace=True)
 
 	# Create a dataframe that only contains the target domains (pivot to 1 domain/row)
 	Domains = ProteinData.copy()
 	DomainCols = ["Name", "Start", "End", "E-Value"]
 	Domains = pd.wide_to_long(Domains, stubnames=DomainCols, 
 		i=["ID"], j="Domain", sep="-", suffix=r"[\w\d]+")
-	Domains = Domains.reset_index() 
+	Domains.reset_index() 
 	Domains.dropna(subset = ["Name"], inplace=True)
 	if AlternativeName == "":
 		Domains = Domains[Domains["Name"].str.contains(DomainName)]
@@ -429,6 +430,7 @@ for DB in args.dblist:
 				x.str.contains(args.name,case=False)).any(axis=1).astype(int)
 			ConcatMotifs = ConcatMotifs[ConcatMotifs["Hit"] != 0]
 			ConcatMotifs.dropna(how="all", axis=1, inplace=True)
+			ConcatMotifs.drop(columns=["Hit"], inplace=True)
 		try:
 			ProteinFile = os.path.join(args.folder, "Output", FileName + "_Protein" + args.filetype)
 			ProteinData = pd.read_csv(ProteinFile, sep=args.separator)
@@ -473,7 +475,7 @@ for DB in args.dblist:
 		MotifCols = ["ID", "Organism", "Taxonomy", "Length"] + DomainNameCols
 		Motifs = ProteinData[MotifCols].copy()
 		Motifs["Domains"] = Motifs[DomainNameCols].apply(lambda x: "+".join(x.dropna()), axis=1)
-		Motifs = Motifs.drop(columns=DomainNameCols)
+		Motifs.drop(columns=DomainNameCols, inplace=True)
 		IE.ExportDataFrame(Motifs, FilePath + "_DomainArchitecture", 
 			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 		
