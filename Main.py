@@ -314,7 +314,8 @@ def DownloadMotifKEGG(IDList, FilePath, CutOff, FileType, Sep, Multiprocess, Clu
 
 	# Move info for all domains for the same protein to one row (pivot dataframe and rename domain columns)
 	ConcatDataFrame = ConcatDataFrame.pivot(index="ID", columns="Index", 
-		values=["Name", "Start", "End", "E-Value"]).sort_index(axis=1, level=1)
+		values=["Name", "Start", "End", "E-Value"])
+	ConcatDataFrame = ConcatDataFrame.sort_index(axis=1, level=1, sort_remaining=False) # Ensure correct order of columns
 	ConcatDataFrame.columns = [f"{x}-D{y}" for x, y in ConcatDataFrame.columns]	# Give the new columns names starting with D[n]-
 	return(DataFrame, ConcatDataFrame)
 
