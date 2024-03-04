@@ -444,6 +444,10 @@ for DB in args.dblist:
 			FileName + "_Protein_cutoff" + str(args.cutoff))
 		IE.ExportDataFrame(DataFrame, CutoffFilePath, 
 			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
+		CutoffIDFilePath = os.path.join(args.folder, "Input", 
+			FileName + "_GeneIDs_cutoff" + str(args.cutoff))
+		IE.ExportDataFrame(DataFrame, CutoffIDFilePath, Columns=["ID"],
+			FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite, Header=False)
 
 
 	# Extract data from UniProt and/or KEGG
