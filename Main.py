@@ -134,8 +134,8 @@ def FindAlternativeName(ProteinData, GivenName):
 
 	# Print and request index of alternative domain name
 	print(TempData)
-	Answer = input("\nFound domain names in the obtained data."
-		"\nPlease enter the index of the correct alternative name (left number, 0 to " + str(len(TempData)-1) +
+	Answer = input("\nFound domain names in the obtained data." +
+		f"\nPlease enter the index of the correct alternative name (left number, 0 to {str(len(TempData)-1)})" +
 		"\nTo quit, write 'quit'\n")
 	while True:
 		if Answer == "quit":
@@ -145,7 +145,7 @@ def FindAlternativeName(ProteinData, GivenName):
 			print(f"Selected alternative name is: {AlternativeName}\n\n")
 			break
 		else:
-			Answer = input("\nPlease enter either 'quit' or an index between 0 and " + str(len(TempData)-1) + "\n")
+			Answer = input(f"\nPlease enter either 'quit' or an index between 0 and {str(len(TempData)-1)}\n")
 	return(AlternativeName)
 
 
@@ -337,7 +337,8 @@ def FilterDomains(ProteinData, DomainNameCols, DomainName):
 		SearchPhrase = AlternativeName
 	ProteinData["Hit"] = ProteinData[DomainNameCols].apply(lambda x: 
 		x.str.contains(SearchPhrase,case=False)).any(axis=1).astype(int)
-	ProteinData = ProteinData[ProteinData["Hit"] != 0]
+
+	ProteinData.drop(ProteinData.loc[ProteinData["Hit"]==0].index, inplace=True)
 	ProteinData.dropna(axis=1, how="all", inplace=True)
 	ProteinData.drop(["Hit"], axis=1, inplace=True)
 
@@ -346,7 +347,6 @@ def FilterDomains(ProteinData, DomainNameCols, DomainName):
 	DomainCols = ["Name", "Start", "End", "E-Value"]
 	Domains = pd.wide_to_long(Domains, stubnames=DomainCols, 
 		i=["ID"], j="Domain", sep="-", suffix=r"[\w\d]+")
-	Domains.reset_index() 
 	Domains.dropna(subset = ["Name"], inplace=True)
 	if AlternativeName == "":
 		Domains = Domains[Domains["Name"].str.contains(DomainName)]
@@ -429,7 +429,7 @@ for DB in args.dblist:
 			DomainNameCols = [col for col in ConcatMotifs if col.startswith("Name-")]
 			ConcatMotifs["Hit"] = ConcatMotifs[DomainNameCols].apply(lambda x: 
 				x.str.contains(args.name,case=False)).any(axis=1).astype(int)
-			ConcatMotifs = ConcatMotifs[ConcatMotifs["Hit"] != 0]
+			ConcatMotifs.drop(ConcatMotifs.index[ConcatMotifs["Hit"] == 0], inplace = True)
 			ConcatMotifs.dropna(how="all", axis=1, inplace=True)
 			ConcatMotifs.drop(columns=["Hit"], inplace=True)
 		try:
