@@ -64,12 +64,12 @@ def CombineFiles(Folder, Sep, FileType):
 ## ================================================================================================
 ## Export pandas dataframe
 def ExportDataFrame(DataFrame, FileName, Add="", Columns="", 
-	FileType=".csv", Sep=";", Ask=True, Header=True):
+	FileType=".csv", Sep=";", Ask=True, Header=True, Index=False):
 	FileName = FileName + Add + FileType
 	FileName = CheckFileExists(FileName, Ask)
 	if Columns == "":
 		Columns = list(DataFrame)
-	DataFrame.to_csv(FileName, sep=Sep, columns = Columns, index=False, header=Header)
+	DataFrame.to_csv(FileName, sep=Sep, columns = Columns, index=Index, header=Header)
 	print("File saved as:", FileName, "\n")
 
 

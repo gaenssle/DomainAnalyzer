@@ -357,6 +357,7 @@ def FilterDomains(ProteinData, DomainNameCols, DomainName):
 	Domains[["Start", "End"]] = Domains[["Start", "End"]].astype(int)
 	Domains["Sequence"] = Domains.apply(lambda x: 
 		x["Sequence"][x["Start"]:x["End"]+1], axis=1)
+	Domains["Length"] = Domains["Sequence"].apply(len)
 
 	return(ProteinData, Domains)
 
@@ -469,7 +470,7 @@ for DB in args.dblist:
 		if args.searchtype == "pf":
 			ProteinData, Domains = FilterDomains(ProteinData, DomainNameCols, args.name)
 			IE.CreateFasta(Domains, FilePath, only=True)
-			IE.ExportDataFrame(Domains, FilePath + "_Domain_Details", 
+			IE.ExportDataFrame(Domains, FilePath + "_Domain_Details", Index=True,
 				FileType=args.filetype, Sep=args.separator, Ask=args.askoverwrite)
 
 		# Create Fasta files of complete sequences
