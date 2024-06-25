@@ -92,6 +92,7 @@ def DownloadMotif(ID):
 			Line = [i for i in Line if i]
 			if Line:
 				Data.append(Line)
+
 		for Line in Data:
 			if inDomains:
 				if Line[0].startswith("pf:"):
@@ -106,6 +107,10 @@ def DownloadMotif(ID):
 					Row += Line
 			elif Line[0] == "Motif id":
 				inDomains = True
+
+		# Add dummy domain if no motif is linked to the gene
+		if Domains == ['']:
+			Domains = [[ID, 1, "NA", "0", "0", "-", "1", "-"]]
 	print(ID, "downloaded")
 	return(Domains)
 

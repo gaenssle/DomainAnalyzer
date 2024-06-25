@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(description="DOMAIN ANALYZER"
     "\nIt then downloads relevant details for each gene ID, e.g. organism and domain architecture"
     "\nThe data can be counted regarding e.g. taxonomy, domain architecture and sequence length")
 parser.add_argument("name", 
-	help="name of the domain")
+	help="name of the target that should be downloaded (e.g. domain ID or kegg orthology ID)")
 parser.add_argument("-m", "--multiprocess", 
 	help="turn on mutltiprocessing (only for Linux)",
 	action="store_true")
@@ -39,7 +39,7 @@ parser.add_argument("-a", "--action",
 	"a=all, i=entry IDs, d=protein data, m=KEGG motif, e=extract (default: %(default)s)", 
 	default="a")
 parser.add_argument("-st", "--searchtype", 
-	help="type of the searched id (default: %(default)s)", 
+	help="type of the searched id; may be pf=domain, ko=KEGG gene ID, gn=KEGG genome ID, ec=enzyme class (default: %(default)s)", 
 	default="pf")
 parser.add_argument("-c", "--cutoff", 
 	help="min E-Value of Pfam domains (default: %(default)s)", 
